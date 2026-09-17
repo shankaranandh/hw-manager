@@ -1,74 +1,147 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
+  Text as RNText,
   TextInput,
   View,
   type StyleProp,
+  type TextProps,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { TAP_TARGET, color, font, radius, shadow, space } from '../theme';
+import {
+  TAP_TARGET,
+  fontCap,
+  fontStyle,
+  radius,
+  space,
+  useTheme,
+  type FontVariant,
+  type Theme,
+} from '../theme';
 
+/**
+ * Every piece of text in the app goes through here.
+ *
+ * It applies the type scale and, more importantly, the per-size Dynamic Type cap
+ * from the theme: a student who turns text size all the way up still gets a
+ * readable plan instead of a heading that pushes the rest of the row off screen.
+ */
+export function Text({
+  variant = 'body',
+  color,
+  style,
+  children,
+  ...rest
+}: TextProps & { variant?: FontVariant; color?: string }) {
+  return (
+    <RNText
+      maxFontSizeMultiplier={fontCap(variant)}
+      style={[fontStyle(variant), color ? { color } : null, style]}
+      {...rest}
+    >
+      {children}
+    </RNText>
+  );
+}
+
+/**
+ * Page frame: safe areas, the header, and the width cap that keeps a line of
+ * text readable when this is running full-screen on an iPad.
+ */
 export function Screen({
   title,
   subtitle,
   action,
   children,
   scroll = true,
+  wide = false,
 }: {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
   children: React.ReactNode;
   scroll?: boolean;
+  /** Opt into the wider cap for a screen that lays itself out in columns. */
+  wide?: boolean;
 }) {
+  const theme = useTheme();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
-  const body = (
-    <>
-      <View style={styles.header}>
+  const topPad = theme.railNavigation ? space(4) : insets.top + space(2);
+  const maxWidth = wide ? theme.wideMaxWidth : theme.contentMaxWidth;
+
+  const body = (fill: boolean) => (
+    // The width cap must not swallow the height: without `flex: 1` a
+    // non-scrolling screen sizes to its content and runs on under the tab bar,
+    // taking its primary button with it.
+    <View
+      style={[
+        styles.constrain,
+        { maxWidth: maxWidth === Infinity ? undefined : maxWidth },
+        fill && styles.constrainFill,
+      ]}
+    >
+      <View style={[styles.header, { paddingHorizontal: theme.gutter }]}>
         <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>{title}</Text>
-          {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
+          <Text variant="display" color={theme.color.text}>
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text variant="body" color={theme.color.textMuted} style={{ marginTop: space(1) }}>
+              {subtitle}
+            </Text>
+          ) : null}
         </View>
         {action}
       </View>
       {children}
-    </>
+    </View>
   );
 
   if (!scroll) {
-    return <View style={[styles.screen, { paddingTop: insets.top + space(2) }]}>{body}</View>;
+    return <View style={[styles.screen, { paddingTop: topPad }]}>{body(true)}</View>;
   }
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={{ paddingTop: insets.top + space(2), paddingBottom: space(8) }}
+      contentContainerStyle={{ paddingTop: topPad, paddingBottom: space(10) }}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      {body}
+      {body(false)}
     </ScrollView>
   );
+}
+
+/** Horizontal padding that matches the current size class. */
+export function Gutter({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const theme = useTheme();
+  return <View style={[{ paddingHorizontal: theme.gutter, gap: space(2) }, style]}>{children}</View>;
 }
 
 export function Card({
   children,
   style,
   onPress,
+  accessibilityLabel,
 }: {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
+  accessibilityLabel?: string;
 }) {
+  const styles = useStyles();
   if (onPress) {
     return (
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
         onPress={onPress}
         style={({ pressed }) => [styles.card, style, pressed && styles.pressed]}
       >
@@ -79,52 +152,22 @@ export function Card({
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
-export function SectionTitle({ children, trailing }: { children: React.ReactNode; trailing?: React.ReactNode }) {
+export function SectionTitle({
+  children,
+  trailing,
+}: {
+  children: React.ReactNode;
+  trailing?: React.ReactNode;
+}) {
+  const theme = useTheme();
+  const styles = useStyles();
   return (
-    <View style={styles.sectionTitleRow}>
-      <Text style={styles.sectionTitle}>{children}</Text>
+    <View style={[styles.sectionTitleRow, { paddingHorizontal: theme.gutter }]}>
+      <Text variant="tiny" color={theme.color.textFaint} style={styles.uppercase} accessibilityRole="header">
+        {children}
+      </Text>
       {trailing}
     </View>
-  );
-}
-
-export function Chip({
-  label,
-  sublabel,
-  selected,
-  onPress,
-  tint,
-  style,
-}: {
-  label: string;
-  sublabel?: string;
-  selected?: boolean;
-  onPress?: () => void;
-  tint?: string;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const accent = tint ?? color.accent;
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: !!selected }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.chip,
-        selected && { backgroundColor: accent, borderColor: accent },
-        pressed && styles.pressed,
-        style,
-      ]}
-    >
-      <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]} numberOfLines={1}>
-        {label}
-      </Text>
-      {sublabel ? (
-        <Text style={[styles.chipSublabel, selected && styles.chipSublabelSelected]} numberOfLines={1}>
-          {sublabel}
-        </Text>
-      ) : null}
-    </Pressable>
   );
 }
 
@@ -145,16 +188,20 @@ export function Button({
   busy?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const theme = useTheme();
+  const styles = useStyles();
   const palette: Record<ButtonKind, { bg: string; fg: string; border: string }> = {
-    primary: { bg: color.accent, fg: '#0B1020', border: color.accent },
-    secondary: { bg: color.surfaceHigh, fg: color.text, border: color.border },
-    ghost: { bg: 'transparent', fg: color.textMuted, border: 'transparent' },
-    danger: { bg: color.dangerSoft, fg: color.danger, border: 'transparent' },
+    primary: { bg: theme.color.accent, fg: theme.color.onAccent, border: theme.color.accent },
+    secondary: { bg: theme.color.surfaceHigh, fg: theme.color.text, border: theme.color.border },
+    ghost: { bg: 'transparent', fg: theme.color.textMuted, border: 'transparent' },
+    danger: { bg: theme.color.dangerSoft, fg: theme.color.onDangerSoft, border: 'transparent' },
   };
   const tone = palette[kind];
+
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled || !!busy, busy: !!busy }}
       disabled={disabled || busy}
       onPress={onPress}
       style={({ pressed }) => [
@@ -168,7 +215,9 @@ export function Button({
       {busy ? (
         <ActivityIndicator color={tone.fg} />
       ) : (
-        <Text style={[styles.buttonLabel, { color: tone.fg }]}>{label}</Text>
+        <Text variant="heading" color={tone.fg}>
+          {label}
+        </Text>
       )}
     </Pressable>
   );
@@ -176,26 +225,36 @@ export function Button({
 
 export function ProgressBar({
   value,
-  tint = color.accent,
+  tint,
   height = 6,
+  label,
 }: {
   /** 0 to 1. */
   value: number;
   tint?: string;
   height?: number;
+  label?: string;
 }) {
+  const theme = useTheme();
   const clamped = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
   return (
     <View
-      style={[styles.progressTrack, { height, borderRadius: height / 2 }]}
+      style={{
+        height,
+        borderRadius: height / 2,
+        backgroundColor: theme.color.surfaceSunken,
+        overflow: 'hidden',
+        width: '100%',
+      }}
       accessibilityRole="progressbar"
+      accessibilityLabel={label}
       accessibilityValue={{ now: Math.round(clamped * 100), min: 0, max: 100 }}
     >
       <View
         style={{
           width: `${clamped * 100}%`,
           height: '100%',
-          backgroundColor: tint,
+          backgroundColor: tint ?? theme.color.accent,
           borderRadius: height / 2,
         }}
       />
@@ -203,17 +262,22 @@ export function ProgressBar({
   );
 }
 
-export function Badge({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'warning' | 'danger' | 'success' }) {
-  const tones = {
-    neutral: { bg: color.surfaceHigh, fg: color.textMuted },
-    warning: { bg: color.warningSoft, fg: color.warning },
-    danger: { bg: color.dangerSoft, fg: color.danger },
-    success: { bg: color.successSoft, fg: color.success },
-  } as const;
-  const tone_ = tones[tone];
+export type BadgeTone = 'neutral' | 'warning' | 'danger' | 'success';
+
+export function Badge({ label, tone = 'neutral' }: { label: string; tone?: BadgeTone }) {
+  const theme = useTheme();
+  const tones: Record<BadgeTone, { bg: string; fg: string }> = {
+    neutral: { bg: theme.color.surfaceHigh, fg: theme.color.textMuted },
+    warning: { bg: theme.color.warningSoft, fg: theme.color.onWarningSoft },
+    danger: { bg: theme.color.dangerSoft, fg: theme.color.onDangerSoft },
+    success: { bg: theme.color.successSoft, fg: theme.color.onSuccessSoft },
+  };
+  const selected = tones[tone];
   return (
-    <View style={[styles.badge, { backgroundColor: tone_.bg }]}>
-      <Text style={[styles.badgeLabel, { color: tone_.fg }]}>{label.toUpperCase()}</Text>
+    <View style={{ backgroundColor: selected.bg, paddingHorizontal: space(2), paddingVertical: 3, borderRadius: radius.sm }}>
+      <Text variant="tiny" color={selected.fg}>
+        {label.toUpperCase()}
+      </Text>
     </View>
   );
 }
@@ -229,13 +293,38 @@ export function EmptyState({
   body: string;
   action?: React.ReactNode;
 }) {
+  const theme = useTheme();
   return (
-    <View style={styles.empty}>
-      <Text style={styles.emptyEmoji}>{emoji}</Text>
-      <Text style={styles.emptyTitle}>{title}</Text>
-      <Text style={styles.emptyBody}>{body}</Text>
-      {action ? <View style={{ marginTop: space(4) }}>{action}</View> : null}
+    <View style={{ alignItems: 'center', paddingHorizontal: space(8), paddingVertical: space(10) }}>
+      {/* Decorative: the title and body already say everything. */}
+      <RNText style={{ fontSize: 44, marginBottom: space(3) }} accessibilityElementsHidden importantForAccessibility="no">
+        {emoji}
+      </RNText>
+      <Text variant="title" color={theme.color.text} style={{ textAlign: 'center' }}>
+        {title}
+      </Text>
+      <Text
+        variant="body"
+        color={theme.color.textMuted}
+        style={{ textAlign: 'center', marginTop: space(2), lineHeight: 21 }}
+      >
+        {body}
+      </Text>
+      {action ? <View style={{ marginTop: space(4), alignSelf: 'stretch', maxWidth: 320 }}>{action}</View> : null}
     </View>
+  );
+}
+
+export function Label({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
+  const theme = useTheme();
+  return (
+    <Text
+      variant="tiny"
+      color={theme.color.textFaint}
+      style={[{ textTransform: 'uppercase', marginBottom: space(2) }, style]}
+    >
+      {children}
+    </Text>
   );
 }
 
@@ -260,6 +349,8 @@ export function TextField({
   returnKeyType?: 'done' | 'next' | 'go';
   onSubmitEditing?: () => void;
 }) {
+  const theme = useTheme();
+  const styles = useStyles();
   return (
     <View>
       {label ? <Label>{label}</Label> : null}
@@ -267,108 +358,89 @@ export function TextField({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={color.textFaint}
+        placeholderTextColor={theme.color.textFaint}
+        accessibilityLabel={label}
         multiline={multiline}
         autoFocus={autoFocus}
         maxLength={maxLength}
         returnKeyType={returnKeyType}
         onSubmitEditing={onSubmitEditing}
+        maxFontSizeMultiplier={fontCap('heading')}
+        keyboardAppearance={theme.scheme === 'dark' ? 'dark' : 'light'}
         style={[styles.input, multiline && styles.inputMultiline]}
       />
     </View>
   );
 }
 
-export function Label({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
-  return <Text style={[styles.label, style]}>{children}</Text>;
+export function Divider() {
+  const theme = useTheme();
+  return <View style={{ height: 1, backgroundColor: theme.color.border, marginVertical: space(4) }} />;
 }
 
-export function Row({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <View style={[styles.row, style]}>{children}</View>;
+export function useStyles() {
+  const theme = useTheme();
+  return useMemo(() => makeStyles(theme), [theme]);
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: color.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingHorizontal: space(5),
-    paddingBottom: space(4),
-    gap: space(3),
-  },
-  headerText: { flex: 1 },
-  headerTitle: { ...font.display, color: color.text },
-  headerSubtitle: { ...font.body, color: color.textMuted, marginTop: space(1) },
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: theme.color.bg },
+    constrain: {
+      width: '100%',
+      maxWidth: theme.contentMaxWidth === Infinity ? undefined : theme.contentMaxWidth,
+      alignSelf: 'center',
+    },
+    constrainFill: { flex: 1 },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      paddingBottom: space(4),
+      gap: space(3),
+    },
+    headerText: { flex: 1 },
 
-  card: {
-    backgroundColor: color.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: color.border,
-    padding: space(4),
-    ...shadow,
-  },
-  pressed: { opacity: 0.7 },
+    card: {
+      backgroundColor: theme.color.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: theme.color.border,
+      padding: space(4),
+      ...theme.elevation(1),
+    },
+    pressed: { opacity: 0.7 },
+    uppercase: { textTransform: 'uppercase' },
 
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: space(6),
-    marginBottom: space(3),
-    paddingHorizontal: space(5),
-  },
-  sectionTitle: { ...font.tiny, color: color.textFaint, textTransform: 'uppercase' },
+    sectionTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: space(6),
+      marginBottom: space(3),
+    },
 
-  chip: {
-    minHeight: TAP_TARGET,
-    justifyContent: 'center',
-    paddingHorizontal: space(4),
-    paddingVertical: space(2),
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: color.border,
-    backgroundColor: color.surface,
-  },
-  chipLabel: { ...font.body, color: color.text, textAlign: 'center' },
-  chipLabelSelected: { color: '#0B1020', fontWeight: '700' },
-  chipSublabel: { ...font.tiny, color: color.textFaint, textAlign: 'center', marginTop: 2 },
-  chipSublabelSelected: { color: 'rgba(11, 16, 32, 0.7)' },
+    button: {
+      minHeight: TAP_TARGET + 4,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: space(5),
+      paddingVertical: space(2),
+    },
+    buttonDisabled: { opacity: 0.4 },
 
-  button: {
-    minHeight: TAP_TARGET + 4,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space(5),
-  },
-  buttonDisabled: { opacity: 0.4 },
-  buttonLabel: { ...font.heading },
-
-  progressTrack: { backgroundColor: color.surfaceSunken, overflow: 'hidden', width: '100%' },
-
-  badge: { paddingHorizontal: space(2), paddingVertical: 3, borderRadius: radius.sm },
-  badgeLabel: { ...font.tiny },
-
-  empty: { alignItems: 'center', paddingHorizontal: space(8), paddingVertical: space(10) },
-  emptyEmoji: { fontSize: 44, marginBottom: space(3) },
-  emptyTitle: { ...font.title, color: color.text, textAlign: 'center' },
-  emptyBody: { ...font.body, color: color.textMuted, textAlign: 'center', marginTop: space(2), lineHeight: 21 },
-
-  label: { ...font.tiny, color: color.textFaint, textTransform: 'uppercase', marginBottom: space(2) },
-  input: {
-    minHeight: TAP_TARGET + 4,
-    backgroundColor: color.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: color.border,
-    paddingHorizontal: space(4),
-    paddingVertical: space(3),
-    color: color.text,
-    ...font.heading,
-  },
-  inputMultiline: { minHeight: 88, textAlignVertical: 'top' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space(2) },
-});
+    input: {
+      minHeight: TAP_TARGET + 4,
+      backgroundColor: theme.color.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: theme.color.border,
+      paddingHorizontal: space(4),
+      paddingVertical: space(3),
+      color: theme.color.text,
+      ...fontStyle('heading'),
+    },
+    inputMultiline: { minHeight: 88, textAlignVertical: 'top' },
+  });

@@ -3,42 +3,77 @@
     "name": "Homework Pacer",
     "slug": "hw-manager",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "scheme": "hwpacer",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#12131A",
-    "primaryColor": "#5B8DEF",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F5F6FB",
+    "primaryColor": "#4B45D1",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.hwpacer.app"
+      "requireFullScreen": false,
+      "bundleIdentifier": "com.hwpacer.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyCollectedDataTypes": [],
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "package": "com.hwpacer.app",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#12131A",
-        "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-    "plugins": [
-      [
-        "expo-notifications",
-        {
-          "color": "#5B8DEF"
-        }
-      ]
-    ],
     "platforms": [
       "ios",
       "android",
       "web"
+    ],
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#4B45D1",
+          "icon": "./assets/android-icon-monochrome.png"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 150,
+          "resizeMode": "contain",
+          "backgroundColor": "#F5F6FB",
+          "dark": {
+            "image": "./assets/splash-icon-dark.png",
+            "backgroundColor": "#0F1118"
+          }
+        }
+      ]
     ]
   }
 }

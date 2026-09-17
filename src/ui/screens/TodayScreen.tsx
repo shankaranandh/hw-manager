@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { addDays, formatMinutes, relativeDayLabel, weekdayLong } from '../../domain/dates';
 import { findPlanDay } from '../../domain/planner';
@@ -7,11 +7,22 @@ import type { PlanWarning } from '../../domain/types';
 import { useApp } from '../../state/store';
 import { AssignmentSheet } from '../components/AssignmentSheet';
 import { BlockRow } from '../components/BlockRow';
-import { Button, Card, EmptyState, ProgressBar, Screen, SectionTitle } from '../components/primitives';
-import { color, font, radius, space } from '../theme';
+import {
+  Button,
+  Card,
+  EmptyState,
+  Gutter,
+  ProgressBar,
+  Screen,
+  SectionTitle,
+  Text,
+} from '../components/primitives';
+import { radius, space, useTheme, type Theme } from '../theme';
 
 export function TodayScreen({ onAdd }: { onAdd: () => void }) {
   const { data, plan, today, actions } = useApp();
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [openId, setOpenId] = useState<string | null>(null);
 
   const day = findPlanDay(plan, today);
@@ -41,8 +52,75 @@ export function TodayScreen({ onAdd }: { onAdd: () => void }) {
     [plan, today],
   );
 
+  const comingUp =
+    upcoming.length > 0 ? (
+      <>
+        <SectionTitle>Coming up</SectionTitle>
+        <Gutter>
+          {upcoming.map((next) => (
+            <Card key={next.date} style={styles.upcomingCard}>
+              <View style={{ flex: 1 }}>
+                <Text variant="heading" color={theme.color.text}>
+                  {relativeDayLabel(next.date, today)}
+                </Text>
+                <Text variant="small" color={theme.color.textFaint} numberOfLines={1} style={{ marginTop: 2 }}>
+                  {next.blocks
+                    .map((b) => subjectById.get(assignmentById.get(b.assignmentId)?.subjectId ?? '')?.name)
+                    .filter(Boolean)
+                    .join(' · ') || `${next.blocks.length} things`}
+                </Text>
+              </View>
+              <Text
+                variant="body"
+                color={next.overloaded ? theme.color.warning : theme.color.textMuted}
+                style={styles.tabular}
+              >
+                {formatMinutes(next.plannedMinutes)}
+              </Text>
+            </Card>
+          ))}
+        </Gutter>
+      </>
+    ) : null;
+
+  const tonight =
+    blocks.length === 0 ? (
+      <EmptyState
+        emoji="🌤️"
+        title="Nothing due, nothing planned"
+        body={
+          data.assignments.length === 0
+            ? 'Add what you wrote down in class today and this turns into a plan you can actually follow.'
+            : 'Every assignment you have entered is either finished or scheduled for another day. Enjoy it.'
+        }
+        action={data.assignments.length === 0 ? <Button label="Add an assignment" onPress={onAdd} /> : undefined}
+      />
+    ) : (
+      <>
+        <SectionTitle>Tonight’s plan</SectionTitle>
+        <Gutter>
+          {blocks.map((block) => {
+            const assignment = assignmentById.get(block.assignmentId);
+            if (!assignment) return null;
+            return (
+              <BlockRow
+                key={block.id}
+                block={block}
+                assignment={assignment}
+                subject={subjectById.get(assignment.subjectId)}
+                today={today}
+                onToggle={(done) => actions.setBlockDone(block.date, block.assignmentId, block.minutes, done)}
+                onOpen={() => setOpenId(assignment.id)}
+              />
+            );
+          })}
+        </Gutter>
+      </>
+    );
+
   return (
     <Screen
+      wide={theme.sizeClass === 'wide' && upcoming.length > 0}
       title={allDone ? 'All done' : 'Today'}
       subtitle={
         totalMinutes === 0
@@ -53,17 +131,17 @@ export function TodayScreen({ onAdd }: { onAdd: () => void }) {
       }
     >
       {totalMinutes > 0 ? (
-        <View style={styles.section}>
-          <Card style={allDone ? styles.heroDone : undefined}>
+        <Gutter>
+          <Card style={allDone ? { borderColor: theme.color.success } : undefined}>
             <View style={styles.heroTop}>
-              <Text style={styles.heroBig}>
+              <Text variant="display" color={theme.color.accent} style={styles.heroBig}>
                 {allDone ? '🎉' : `${Math.round((doneMinutes / totalMinutes) * 100)}%`}
               </Text>
-              <View style={styles.heroCopy}>
-                <Text style={styles.heroTitle}>
+              <View style={{ flex: 1 }}>
+                <Text variant="heading" color={theme.color.text}>
                   {allDone ? 'Everything on tonight’s list is done' : encouragement(blocks.length, leftMinutes)}
                 </Text>
-                <Text style={styles.heroMeta}>
+                <Text variant="small" color={theme.color.textMuted} style={{ marginTop: space(1) }}>
                   {formatMinutes(doneMinutes)} of {formatMinutes(totalMinutes)} ·{' '}
                   {formatMinutes(day?.capacityMinutes ?? 0)} set aside
                 </Text>
@@ -72,81 +150,36 @@ export function TodayScreen({ onAdd }: { onAdd: () => void }) {
             <View style={{ marginTop: space(4) }}>
               <ProgressBar
                 value={doneMinutes / totalMinutes}
-                tint={allDone ? color.success : day?.overloaded ? color.warning : color.accent}
+                tint={allDone ? theme.color.success : day?.overloaded ? theme.color.warning : theme.color.accent}
                 height={8}
+                label={`${formatMinutes(doneMinutes)} of ${formatMinutes(totalMinutes)} done`}
               />
             </View>
           </Card>
-        </View>
+        </Gutter>
       ) : null}
 
       {todaysWarnings.length > 0 ? (
-        <View style={styles.section}>
+        <Gutter style={{ marginTop: space(2) }}>
           {todaysWarnings.map((warning, index) => (
             <WarningCard key={`${warning.kind}-${index}`} warning={warning} />
           ))}
-        </View>
+        </Gutter>
       ) : null}
 
-      {blocks.length === 0 ? (
-        <EmptyState
-          emoji="🌤️"
-          title="Nothing due, nothing planned"
-          body={
-            data.assignments.length === 0
-              ? 'Add what you wrote down in class today and this turns into a plan you can actually follow.'
-              : 'Every assignment you have entered is either finished or scheduled for another day. Enjoy it.'
-          }
-          action={
-            data.assignments.length === 0 ? <Button label="Add an assignment" onPress={onAdd} /> : undefined
-          }
-        />
+      {/* On a wide screen the plan and what follows it sit side by side, rather
+          than leaving half the iPad empty and pushing "coming up" below the fold. */}
+      {theme.sizeClass === 'wide' && comingUp ? (
+        <View style={styles.columns}>
+          <View style={styles.column}>{tonight}</View>
+          <View style={styles.column}>{comingUp}</View>
+        </View>
       ) : (
         <>
-          <SectionTitle>Tonight’s plan</SectionTitle>
-          <View style={styles.list}>
-            {blocks.map((block) => {
-              const assignment = assignmentById.get(block.assignmentId);
-              if (!assignment) return null;
-              return (
-                <BlockRow
-                  key={block.id}
-                  block={block}
-                  assignment={assignment}
-                  subject={subjectById.get(assignment.subjectId)}
-                  today={today}
-                  onToggle={(done) => actions.setBlockDone(block.date, block.assignmentId, block.minutes, done)}
-                  onOpen={() => setOpenId(assignment.id)}
-                />
-              );
-            })}
-          </View>
+          {tonight}
+          {comingUp}
         </>
       )}
-
-      {upcoming.length > 0 ? (
-        <>
-          <SectionTitle>Coming up</SectionTitle>
-          <View style={styles.list}>
-            {upcoming.map((next) => (
-              <Card key={next.date} style={styles.upcomingCard}>
-                <View>
-                  <Text style={styles.upcomingDay}>{relativeDayLabel(next.date, today)}</Text>
-                  <Text style={styles.upcomingDetail} numberOfLines={1}>
-                    {next.blocks
-                      .map((b) => subjectById.get(assignmentById.get(b.assignmentId)?.subjectId ?? '')?.name)
-                      .filter(Boolean)
-                      .join(' · ') || `${next.blocks.length} things`}
-                  </Text>
-                </View>
-                <Text style={[styles.upcomingMinutes, next.overloaded && { color: color.warning }]}>
-                  {formatMinutes(next.plannedMinutes)}
-                </Text>
-              </Card>
-            ))}
-          </View>
-        </>
-      ) : null}
 
       <AssignmentSheet assignmentId={openId} onClose={() => setOpenId(null)} />
     </Screen>
@@ -154,17 +187,21 @@ export function TodayScreen({ onAdd }: { onAdd: () => void }) {
 }
 
 function WarningCard({ warning }: { warning: PlanWarning }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const tone =
-    warning.kind === 'overdue'
-      ? { bg: color.dangerSoft, fg: color.danger, icon: '⏰' }
-      : warning.kind === 'wont-fit'
-        ? { bg: color.dangerSoft, fg: color.danger, icon: '🚨' }
-        : { bg: color.warningSoft, fg: color.warning, icon: '⚠️' };
+    warning.kind === 'overloaded'
+      ? { bg: theme.color.warningSoft, fg: theme.color.onWarningSoft, icon: '⚠️' }
+      : { bg: theme.color.dangerSoft, fg: theme.color.onDangerSoft, icon: warning.kind === 'overdue' ? '⏰' : '🚨' };
 
   return (
-    <View style={[styles.warning, { backgroundColor: tone.bg }]}>
-      <Text style={styles.warningIcon}>{tone.icon}</Text>
-      <Text style={[styles.warningText, { color: tone.fg }]}>{warning.message}</Text>
+    <View style={[styles.warning, { backgroundColor: tone.bg }]} accessibilityRole="alert">
+      <Text variant="body" style={styles.warningIcon} accessibilityElementsHidden importantForAccessibility="no">
+        {tone.icon}
+      </Text>
+      <Text variant="small" color={tone.fg} style={styles.warningText}>
+        {warning.message}
+      </Text>
     </View>
   );
 }
@@ -177,29 +214,24 @@ function encouragement(count: number, minutesLeft: number): string {
   return `${count} short blocks, with breaks in between`;
 }
 
-const styles = StyleSheet.create({
-  section: { paddingHorizontal: space(5), gap: space(2) },
-  list: { paddingHorizontal: space(5), gap: space(2) },
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    heroTop: { flexDirection: 'row', alignItems: 'center', gap: space(4) },
+    heroBig: { fontVariant: ['tabular-nums'], minWidth: 64 },
+    tabular: { fontVariant: ['tabular-nums'] },
 
-  heroTop: { flexDirection: 'row', alignItems: 'center', gap: space(4) },
-  heroDone: { borderColor: color.success },
-  heroBig: { ...font.display, color: color.accent, fontVariant: ['tabular-nums'], minWidth: 64 },
-  heroCopy: { flex: 1 },
-  heroTitle: { ...font.heading, color: color.text },
-  heroMeta: { ...font.small, color: color.textMuted, marginTop: space(1) },
+    warning: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: space(3),
+      borderRadius: radius.md,
+      padding: space(3),
+    },
+    warningIcon: { fontSize: 16 },
+    warningText: { flex: 1, lineHeight: 19 },
 
-  warning: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space(3),
-    borderRadius: radius.md,
-    padding: space(3),
-  },
-  warningIcon: { fontSize: 16 },
-  warningText: { ...font.small, flex: 1, lineHeight: 19 },
+    upcomingCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space(3) },
 
-  upcomingCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  upcomingDay: { ...font.heading, color: color.text },
-  upcomingDetail: { ...font.small, color: color.textFaint, marginTop: 2 },
-  upcomingMinutes: { ...font.body, color: color.textMuted, fontVariant: ['tabular-nums'] },
-});
+    columns: { flexDirection: 'row', gap: space(4) },
+    column: { flex: 1 },
+  });

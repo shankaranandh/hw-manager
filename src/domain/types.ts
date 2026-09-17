@@ -62,8 +62,12 @@ export interface WorkLog {
 /** Minutes of homework the student is willing to do, indexed by JS day-of-week (0 = Sunday). */
 export type CapacityByWeekday = [number, number, number, number, number, number, number];
 
+/** Follow the phone, or override it. */
+export type ThemePreference = 'system' | 'light' | 'dark';
+
 export interface Settings {
   capacityByWeekday: CapacityByWeekday;
+  themePreference: ThemePreference;
   /** Longest single sitting before a break, in minutes. */
   maxChunkMinutes: number;
   /** Shortest block worth putting on the plan, in minutes. */

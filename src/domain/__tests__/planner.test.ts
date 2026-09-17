@@ -8,6 +8,7 @@ const TODAY = '2026-09-16';
 const settings = (overrides: Partial<Settings> = {}): Settings => ({
   // Sun, Mon, Tue, Wed, Thu, Fri, Sat
   capacityByWeekday: [60, 60, 60, 60, 60, 30, 60],
+  themePreference: 'system',
   maxChunkMinutes: 40,
   minChunkMinutes: 15,
   finishADayEarly: true,

@@ -1,7 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { DEFAULT_SETTINGS, SCHEMA_VERSION, emptyAppData, starterSubjects } from '../domain/defaults';
-import type { AppData, Assignment, CapacityByWeekday, Settings, Subject, WorkLog } from '../domain/types';
+import type {
+  AppData,
+  Assignment,
+  CapacityByWeekday,
+  Settings,
+  Subject,
+  ThemePreference,
+  WorkLog,
+} from '../domain/types';
 
 const STORAGE_KEY = 'hw-manager:data:v1';
 
@@ -112,8 +120,12 @@ function sanitizeSettings(value: unknown): Settings {
     : ([...DEFAULT_SETTINGS.capacityByWeekday] as CapacityByWeekday);
 
   const maxChunk = clamp(Math.round(num(input.maxChunkMinutes, DEFAULT_SETTINGS.maxChunkMinutes)), 10, 180);
+  const themes: ThemePreference[] = ['system', 'light', 'dark'];
   return {
     capacityByWeekday: capacity,
+    themePreference: themes.includes(input.themePreference as ThemePreference)
+      ? (input.themePreference as ThemePreference)
+      : DEFAULT_SETTINGS.themePreference,
     maxChunkMinutes: maxChunk,
     minChunkMinutes: clamp(
       Math.round(num(input.minChunkMinutes, DEFAULT_SETTINGS.minChunkMinutes)),

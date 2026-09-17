@@ -1,11 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 import { formatMinutes, relativeDayLabel } from '../../domain/dates';
 import { SIZE_MINUTES, type Size } from '../../domain/types';
 import { useApp } from '../../state/store';
-import { color, font, radius, space } from '../theme';
-import { Button, Label, ProgressBar, TextField } from './primitives';
+import { radius, space, useTheme, type Theme } from '../theme';
+import { Button, Label, ProgressBar, Text, TextField } from './primitives';
 import { DuePicker, SizePicker, SubjectPicker, sizeForMinutes } from './pickers';
 
 export function AssignmentSheet({
@@ -16,6 +25,8 @@ export function AssignmentSheet({
   onClose: () => void;
 }) {
   const { data, plan, today, actions } = useApp();
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const assignment = useMemo(
     () => data.assignments.find((a) => a.id === assignmentId) ?? null,
     [data.assignments, assignmentId],
@@ -77,17 +88,22 @@ export function AssignmentSheet({
 
   return (
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.sheet}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={styles.sheet} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.bar}>
-          <Pressable onPress={onClose} hitSlop={12}>
-            <Text style={styles.barAction}>Close</Text>
+          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button">
+            <Text variant="body" color={theme.color.textMuted}>
+              Close
+            </Text>
           </Pressable>
-          <Text style={styles.barTitle}>Assignment</Text>
-          <Pressable onPress={save} hitSlop={12} disabled={!dirty || !title.trim()}>
-            <Text style={[styles.barAction, styles.barSave, (!dirty || !title.trim()) && styles.barDisabled]}>
+          <Text variant="heading" color={theme.color.text} accessibilityRole="header">
+            Assignment
+          </Text>
+          <Pressable onPress={save} hitSlop={12} disabled={!dirty || !title.trim()} accessibilityRole="button">
+            <Text
+              variant="heading"
+              color={theme.color.accent}
+              style={(!dirty || !title.trim()) && styles.barDisabled}
+            >
               Save
             </Text>
           </Pressable>
@@ -99,21 +115,22 @@ export function AssignmentSheet({
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.statusCard}>
-            <Text style={styles.statusTitle}>
+            <Text variant="title" color={theme.color.text}>
               {isComplete
                 ? 'Finished'
                 : remaining === 0
                   ? 'Nothing left to do'
                   : `${formatMinutes(remaining)} left`}
             </Text>
-            <Text style={styles.statusMeta}>
-              Due {relativeDayLabel(assignment.dueDate, today).toLowerCase()} ·{' '}
-              {formatMinutes(done)} of {formatMinutes(assignment.estimateMinutes)} done
+            <Text variant="small" color={theme.color.textMuted} style={{ marginTop: space(1) }}>
+              Due {relativeDayLabel(assignment.dueDate, today).toLowerCase()} · {formatMinutes(done)} of{' '}
+              {formatMinutes(assignment.estimateMinutes)} done
             </Text>
             <View style={{ marginTop: space(3) }}>
               <ProgressBar
                 value={assignment.estimateMinutes === 0 ? 0 : done / assignment.estimateMinutes}
-                tint={isComplete ? color.success : color.accent}
+                tint={isComplete ? theme.color.success : theme.color.accent}
+                label={`${formatMinutes(done)} of ${formatMinutes(assignment.estimateMinutes)} done`}
               />
             </View>
           </View>
@@ -151,33 +168,34 @@ export function AssignmentSheet({
   );
 }
 
-const styles = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: color.bg },
-  bar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: space(5),
-    paddingVertical: space(4),
-    borderBottomWidth: 1,
-    borderBottomColor: color.border,
-  },
-  barTitle: { ...font.heading, color: color.text },
-  barAction: { ...font.body, color: color.textMuted },
-  barSave: { color: color.accent, fontWeight: '700' },
-  barDisabled: { opacity: 0.35 },
-
-  content: { padding: space(5), gap: space(5), paddingBottom: space(12) },
-
-  statusCard: {
-    backgroundColor: color.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: color.border,
-    padding: space(4),
-  },
-  statusTitle: { ...font.title, color: color.text },
-  statusMeta: { ...font.small, color: color.textMuted, marginTop: space(1) },
-
-  danger: { marginTop: space(4), gap: space(1) },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    sheet: { flex: 1, backgroundColor: theme.color.bg },
+    bar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: space(5),
+      paddingVertical: space(4),
+      borderBottomWidth: 1,
+      borderBottomColor: theme.color.border,
+      gap: space(3),
+    },
+    barDisabled: { opacity: 0.35 },
+    content: {
+      padding: space(5),
+      gap: space(5),
+      paddingBottom: space(12),
+      width: '100%',
+      maxWidth: 680,
+      alignSelf: 'center',
+    },
+    statusCard: {
+      backgroundColor: theme.color.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: theme.color.border,
+      padding: space(4),
+    },
+    danger: { marginTop: space(4), gap: space(1) },
+  });

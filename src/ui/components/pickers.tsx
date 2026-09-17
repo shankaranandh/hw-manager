@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { dayRange, fromDayKey, shortDayLabel, weekdayShort } from '../../domain/dates';
+import { dayRange, fromDayKey, monthDayLabel, relativeDayLabel, weekdayShort } from '../../domain/dates';
 import { SIZE_LABELS, SIZE_MINUTES, type DayKey, type Size, type Subject } from '../../domain/types';
-import { TAP_TARGET, color, font, radius, space } from '../theme';
-import { Label } from './primitives';
+import { TAP_TARGET, radius, space, useTheme, type Theme } from '../theme';
+import { Label, Text } from './primitives';
 
 /**
  * A horizontal strip of upcoming days.
@@ -23,37 +23,39 @@ export function DuePicker({
   onChange: (date: DayKey) => void;
   days?: number;
 }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const options = useMemo(() => dayRange(today, days), [today, days]);
 
   return (
     <View>
       <Label>When is it due?</Label>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.strip}
-      >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
         {options.map((date) => {
           const selected = date === value;
-          const isWeekendDay = [0, 6].includes(fromDayKey(date).getDay());
+          const weekend = [0, 6].includes(fromDayKey(date).getDay());
           return (
             <Pressable
               key={date}
               accessibilityRole="button"
               accessibilityState={{ selected }}
-              accessibilityLabel={shortDayLabel(date, today)}
+              accessibilityLabel={`${relativeDayLabel(date, today)}, ${monthDayLabel(date)}`}
               onPress={() => onChange(date)}
               style={({ pressed }) => [
                 styles.day,
-                isWeekendDay && styles.dayWeekend,
+                weekend && styles.dayWeekend,
                 selected && styles.daySelected,
                 pressed && styles.pressed,
               ]}
             >
-              <Text style={[styles.dayName, selected && styles.daySelectedText]}>
+              <Text variant="tiny" color={selected ? theme.color.onAccent : theme.color.textMuted}>
                 {date === today ? 'Today' : weekdayShort(date)}
               </Text>
-              <Text style={[styles.dayNumber, selected && styles.daySelectedText]}>
+              <Text
+                variant="title"
+                color={selected ? theme.color.onAccent : theme.color.text}
+                style={{ marginTop: 2 }}
+              >
                 {fromDayKey(date).getDate()}
               </Text>
             </Pressable>
@@ -66,7 +68,10 @@ export function DuePicker({
 
 /** Students cannot estimate minutes, but they can tell you how big it feels. */
 export function SizePicker({ value, onChange }: { value: Size; onChange: (size: Size) => void }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const sizes: Size[] = ['quick', 'medium', 'big', 'huge'];
+
   return (
     <View>
       <Label>How big is it?</Label>
@@ -78,13 +83,18 @@ export function SizePicker({ value, onChange }: { value: Size; onChange: (size: 
               key={size}
               accessibilityRole="button"
               accessibilityState={{ selected }}
+              accessibilityLabel={`${SIZE_LABELS[size].label}, ${SIZE_LABELS[size].hint}`}
               onPress={() => onChange(size)}
-              style={({ pressed }) => [styles.size, selected && styles.sizeSelected, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.size, selected && styles.daySelected, pressed && styles.pressed]}
             >
-              <Text style={[styles.sizeLabel, selected && styles.daySelectedText]}>
+              <Text variant="body" color={selected ? theme.color.onAccent : theme.color.text}>
                 {SIZE_LABELS[size].label}
               </Text>
-              <Text style={[styles.sizeHint, selected && styles.sizeHintSelected]}>
+              <Text
+                variant="tiny"
+                color={selected ? theme.color.onAccent : theme.color.textFaint}
+                style={styles.sizeHint}
+              >
                 {SIZE_LABELS[size].hint}
               </Text>
             </Pressable>
@@ -97,9 +107,11 @@ export function SizePicker({ value, onChange }: { value: Size; onChange: (size: 
 
 export const sizeForMinutes = (minutes: number): Size => {
   const entries = Object.entries(SIZE_MINUTES) as [Size, number][];
-  return entries.reduce((best, [size, value]) =>
-    Math.abs(value - minutes) < Math.abs(SIZE_MINUTES[best] - minutes) ? size : best,
-  'quick' as Size);
+  return entries.reduce(
+    (best, [size, value]) =>
+      Math.abs(value - minutes) < Math.abs(SIZE_MINUTES[best] - minutes) ? size : best,
+    'quick' as Size,
+  );
 };
 
 export function SubjectPicker({
@@ -113,12 +125,16 @@ export function SubjectPicker({
   onChange: (id: string) => void;
   onAdd?: () => void;
 }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   return (
     <View>
       <Label>Which class?</Label>
       <View style={styles.subjectWrap}>
         {subjects.map((subject) => {
           const selected = subject.id === value;
+          const colors = theme.subject(subject.color);
           return (
             <Pressable
               key={subject.id}
@@ -127,12 +143,16 @@ export function SubjectPicker({
               onPress={() => onChange(subject.id)}
               style={({ pressed }) => [
                 styles.subject,
-                selected && { backgroundColor: subject.color, borderColor: subject.color },
+                selected && { backgroundColor: colors.fill, borderColor: colors.fill },
                 pressed && styles.pressed,
               ]}
             >
-              {!selected ? <View style={[styles.subjectDot, { backgroundColor: subject.color }]} /> : null}
-              <Text style={[styles.subjectLabel, selected && styles.daySelectedText]} numberOfLines={1}>
+              {!selected ? <View style={[styles.subjectDot, { backgroundColor: colors.dot }]} /> : null}
+              <Text
+                variant="body"
+                color={selected ? colors.onFill : theme.color.text}
+                numberOfLines={1}
+              >
                 {subject.name}
               </Text>
             </Pressable>
@@ -145,7 +165,9 @@ export function SubjectPicker({
             onPress={onAdd}
             style={({ pressed }) => [styles.subject, styles.subjectAdd, pressed && styles.pressed]}
           >
-            <Text style={styles.subjectAddLabel}>+ Class</Text>
+            <Text variant="body" color={theme.color.textMuted}>
+              + Class
+            </Text>
           </Pressable>
         ) : null}
       </View>
@@ -153,58 +175,52 @@ export function SubjectPicker({
   );
 }
 
-const styles = StyleSheet.create({
-  strip: { gap: space(2), paddingRight: space(4) },
-  day: {
-    width: 56,
-    minHeight: TAP_TARGET + 16,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: color.border,
-    backgroundColor: color.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: space(2),
-  },
-  dayWeekend: { backgroundColor: color.surfaceSunken },
-  daySelected: { backgroundColor: color.accent, borderColor: color.accent },
-  daySelectedText: { color: '#0B1020', fontWeight: '700' },
-  dayName: { ...font.tiny, color: color.textMuted },
-  dayNumber: { ...font.title, color: color.text, marginTop: 2 },
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    strip: { gap: space(2), paddingRight: space(4), paddingVertical: 2 },
+    day: {
+      width: 58,
+      minHeight: TAP_TARGET + 18,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: theme.color.border,
+      backgroundColor: theme.color.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: space(2),
+    },
+    dayWeekend: { backgroundColor: theme.color.surfaceHigh },
+    daySelected: { backgroundColor: theme.color.accent, borderColor: theme.color.accent },
+    pressed: { opacity: 0.7 },
 
-  sizeRow: { flexDirection: 'row', gap: space(2) },
-  size: {
-    flex: 1,
-    minHeight: TAP_TARGET + 12,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: color.border,
-    backgroundColor: color.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space(1),
-  },
-  sizeSelected: { backgroundColor: color.accent, borderColor: color.accent },
-  sizeLabel: { ...font.body, color: color.text },
-  sizeHint: { ...font.tiny, color: color.textFaint, marginTop: 2, textAlign: 'center' },
-  sizeHintSelected: { color: 'rgba(11, 16, 32, 0.7)' },
+    sizeRow: { flexDirection: 'row', gap: space(2) },
+    size: {
+      flex: 1,
+      minHeight: TAP_TARGET + 14,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: theme.color.border,
+      backgroundColor: theme.color.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: space(1),
+      paddingVertical: space(2),
+    },
+    sizeHint: { marginTop: 2, textAlign: 'center' },
 
-  subjectWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space(2) },
-  subject: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space(2),
-    minHeight: TAP_TARGET,
-    paddingHorizontal: space(4),
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: color.border,
-    backgroundColor: color.surface,
-  },
-  subjectDot: { width: 8, height: 8, borderRadius: 4 },
-  subjectLabel: { ...font.body, color: color.text },
-  subjectAdd: { borderStyle: 'dashed', borderColor: color.borderStrong },
-  subjectAddLabel: { ...font.body, color: color.textMuted },
-
-  pressed: { opacity: 0.7 },
-});
+    subjectWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space(2) },
+    subject: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space(2),
+      minHeight: TAP_TARGET,
+      paddingHorizontal: space(4),
+      paddingVertical: space(2),
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: theme.color.border,
+      backgroundColor: theme.color.surface,
+    },
+    subjectDot: { width: 8, height: 8, borderRadius: 4 },
+    subjectAdd: { borderStyle: 'dashed', borderColor: theme.color.borderStrong },
+  });

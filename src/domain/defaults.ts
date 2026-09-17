@@ -1,27 +1,19 @@
+import { SUBJECT_HUES } from '../ui/theme';
 import type { AppData, Settings, Subject } from './types';
 
 export const SCHEMA_VERSION = 1;
 
 /**
- * Subject colours. Chosen to stay distinguishable against the dark background
- * and to remain distinct for the most common forms of colour blindness, since
- * colour is how a student picks their subject out of a list at a glance.
+ * The shipped subject hues. Each one is adapted per colour scheme at render
+ * time by `subjectColors`, which is where the contrast guarantees live.
  */
-export const SUBJECT_PALETTE = [
-  '#5B8DEF', // blue
-  '#F2994A', // orange
-  '#27AE60', // green
-  '#BB6BD9', // purple
-  '#EB5757', // red
-  '#2D9CDB', // sky
-  '#F2C94C', // yellow
-  '#00B8A9', // teal
-];
+export const SUBJECT_PALETTE = SUBJECT_HUES;
 
 export const DEFAULT_SETTINGS: Settings = {
   // Sun, Mon, Tue, Wed, Thu, Fri, Sat. Light on Friday, because nobody does
   // homework on a Friday night, and pretending otherwise makes the plan a lie.
   capacityByWeekday: [60, 60, 60, 60, 60, 20, 45],
+  themePreference: 'system',
   maxChunkMinutes: 40,
   minChunkMinutes: 15,
   finishADayEarly: true,

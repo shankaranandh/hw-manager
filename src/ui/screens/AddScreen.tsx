@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 import { addDays, formatMinutes, relativeDayLabel } from '../../domain/dates';
 import { buildPlan } from '../../domain/planner';
 import { SIZE_MINUTES, type Size } from '../../domain/types';
 import { useApp } from '../../state/store';
-import { Button, Card, Screen, TextField } from '../components/primitives';
+import { Button, Card, Screen, Text, TextField } from '../components/primitives';
 import { DuePicker, SizePicker, SubjectPicker } from '../components/pickers';
 import { PromptModal } from '../components/PromptModal';
-import { color, font, radius, space } from '../theme';
+import { space, useTheme, type Theme } from '../theme';
 
 /**
  * Capture has to survive a noisy hallway and thirty seconds between classes, so
@@ -17,6 +17,8 @@ import { color, font, radius, space } from '../theme';
  */
 export function AddScreen({ onSaved }: { onSaved: () => void }) {
   const { data, today, actions } = useApp();
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
@@ -104,14 +106,16 @@ export function AddScreen({ onSaved }: { onSaved: () => void }) {
       >
         <ScrollView
           ref={scrollRef}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingHorizontal: theme.gutter }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           {justSaved && !title ? (
-            <Card style={styles.saved}>
-              <Text style={styles.savedTitle}>Added “{justSaved}”</Text>
-              <Text style={styles.savedBody}>
+            <Card style={{ borderColor: theme.color.success }}>
+              <Text variant="heading" color={theme.color.success}>
+                Added “{justSaved}”
+              </Text>
+              <Text variant="small" color={theme.color.textMuted} style={{ marginTop: space(1) }}>
                 It is on your plan. Add the next one, or check the Today tab.
               </Text>
               <View style={{ marginTop: space(3) }}>
@@ -142,20 +146,28 @@ export function AddScreen({ onSaved }: { onSaved: () => void }) {
 
           {preview ? (
             <Card style={styles.preview}>
-              <Text style={styles.previewLabel}>HERE IS THE PLAN</Text>
+              <Text variant="tiny" color={theme.color.textFaint} style={{ marginBottom: space(1) }}>
+                HERE IS THE PLAN
+              </Text>
               {preview.problem ? (
-                <Text style={styles.previewProblem}>{preview.problem.message}</Text>
+                <Text variant="small" color={theme.color.warning} style={styles.previewProblem}>
+                  {preview.problem.message}
+                </Text>
               ) : null}
               {preview.scheduled.length === 0 ? (
-                <Text style={styles.previewBody}>
+                <Text variant="small" color={theme.color.textMuted} style={{ lineHeight: 19 }}>
                   There is no room left before it is due. It will still be added, and shown as over
                   your limit.
                 </Text>
               ) : (
                 preview.scheduled.map((slot) => (
                   <View key={slot.date} style={styles.previewRow}>
-                    <Text style={styles.previewDay}>{relativeDayLabel(slot.date, today)}</Text>
-                    <Text style={styles.previewMinutes}>{formatMinutes(slot.minutes)}</Text>
+                    <Text variant="body" color={theme.color.text}>
+                      {relativeDayLabel(slot.date, today)}
+                    </Text>
+                    <Text variant="body" color={theme.color.textMuted} style={styles.tabular}>
+                      {formatMinutes(slot.minutes)}
+                    </Text>
                   </View>
                 ))
               )}
@@ -190,23 +202,23 @@ export function AddScreen({ onSaved }: { onSaved: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
-  content: { paddingHorizontal: space(5), paddingBottom: space(12), gap: space(5) },
-
-  saved: { borderColor: color.success },
-  savedTitle: { ...font.heading, color: color.success },
-  savedBody: { ...font.small, color: color.textMuted, marginTop: space(1) },
-
-  preview: { backgroundColor: color.surfaceSunken, gap: space(1) },
-  previewLabel: { ...font.tiny, color: color.textFaint, marginBottom: space(1) },
-  previewBody: { ...font.small, color: color.textMuted, lineHeight: 19 },
-  previewProblem: { ...font.small, color: color.warning, marginBottom: space(2), lineHeight: 19 },
-  previewRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: space(1),
-  },
-  previewDay: { ...font.body, color: color.text },
-  previewMinutes: { ...font.body, color: color.textMuted, fontVariant: ['tabular-nums'] },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    content: {
+      paddingBottom: space(12),
+      gap: space(5),
+      width: '100%',
+      maxWidth: theme.contentMaxWidth === Infinity ? undefined : theme.contentMaxWidth,
+      alignSelf: 'center',
+    },
+    preview: { backgroundColor: theme.color.surfaceSunken, gap: space(1) },
+    previewProblem: { marginBottom: space(2), lineHeight: 19 },
+    previewRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: space(1),
+      gap: space(3),
+    },
+    tabular: { fontVariant: ['tabular-nums'] },
+  });

@@ -1,19 +1,35 @@
-import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { formatMinutes, formatTimeOfDay } from '../../domain/dates';
-import type { CapacityByWeekday } from '../../domain/types';
+import type { CapacityByWeekday, ThemePreference } from '../../domain/types';
 import { useApp } from '../../state/store';
-import { Button, Card, Label, Screen, SectionTitle } from '../components/primitives';
+import {
+  Button,
+  Card,
+  Divider,
+  Gutter,
+  Label,
+  Screen,
+  SectionTitle,
+  Text,
+} from '../components/primitives';
 import { PromptModal } from '../components/PromptModal';
-import { TAP_TARGET, color, font, radius, space } from '../theme';
+import { TAP_TARGET, radius, space, useTheme, type Theme } from '../theme';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 /** The choices a student will actually recognise as "how long I'll sit there". */
 const CAPACITY_STEPS = [0, 15, 30, 45, 60, 90, 120];
+const THEMES: { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: 'Auto' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
 
 export function SettingsScreen() {
   const { data, permission, actions } = useApp();
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { settings } = data;
   const [addingSubject, setAddingSubject] = useState(false);
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
@@ -28,8 +44,7 @@ export function SettingsScreen() {
   };
 
   const shiftTime = (key: 'planReminderMinutes' | 'checkInMinutes', deltaMinutes: number) => {
-    const next = (settings[key] + deltaMinutes + 1440) % 1440;
-    actions.updateSettings({ [key]: next });
+    actions.updateSettings({ [key]: (settings[key] + deltaMinutes + 1440) % 1440 });
   };
 
   const confirmReset = () => {
@@ -58,12 +73,18 @@ export function SettingsScreen() {
 
   return (
     <Screen title="Settings" subtitle="How you want the week paced">
-      <SectionTitle trailing={<Text style={styles.sectionMeta}>{formatMinutes(weekTotal)} a week</Text>}>
+      <SectionTitle
+        trailing={
+          <Text variant="tiny" color={theme.color.textFaint}>
+            {formatMinutes(weekTotal)} a week
+          </Text>
+        }
+      >
         Time you'll actually give it
       </SectionTitle>
-      <View style={styles.block}>
+      <Gutter>
         <Card>
-          <Text style={styles.explainer}>
+          <Text variant="small" color={theme.color.textMuted} style={styles.explainer}>
             Tap a day to change how long you're willing to work on it. Set busy days to zero and the
             plan will route around them.
           </Text>
@@ -74,7 +95,8 @@ export function SettingsScreen() {
                 <Pressable
                   key={label}
                   accessibilityRole="button"
-                  accessibilityLabel={`${label}: ${formatMinutes(minutes)}. Tap to change.`}
+                  accessibilityLabel={`${label}: ${formatMinutes(minutes)}`}
+                  accessibilityHint="Double tap to change"
                   onPress={() => cycleCapacity(index)}
                   style={({ pressed }) => [
                     styles.capacityDay,
@@ -82,8 +104,14 @@ export function SettingsScreen() {
                     pressed && { opacity: 0.6 },
                   ]}
                 >
-                  <Text style={styles.capacityLabel}>{label}</Text>
-                  <Text style={[styles.capacityValue, minutes === 0 && styles.capacityValueOff]}>
+                  <Text variant="tiny" color={theme.color.textFaint}>
+                    {label}
+                  </Text>
+                  <Text
+                    variant="heading"
+                    color={minutes === 0 ? theme.color.textFaint : theme.color.text}
+                    style={styles.capacityValue}
+                  >
                     {minutes === 0 ? '—' : minutes}
                   </Text>
                 </Pressable>
@@ -91,79 +119,87 @@ export function SettingsScreen() {
             })}
           </View>
         </Card>
-      </View>
+      </Gutter>
 
       <SectionTitle>Reminders</SectionTitle>
-      <View style={styles.block}>
+      <Gutter>
         <Card>
           <View style={styles.switchRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowTitle}>Send me reminders</Text>
-              <Text style={styles.rowHint}>
+              <Text variant="heading" color={theme.color.text}>
+                Send me reminders
+              </Text>
+              <Text variant="small" color={theme.color.textFaint} style={styles.hint}>
                 {permission === 'unsupported'
-                  ? 'Only available on a phone, not in the web preview.'
+                  ? 'Only available on a phone or iPad, not in the web preview.'
                   : permission === 'granted'
                     ? 'Two a night at most: the plan, then a check-in.'
-                    : 'Your phone has notifications turned off for this app.'}
+                    : 'Notifications are switched off for this app in your device settings.'}
               </Text>
             </View>
             <Switch
               value={settings.notificationsEnabled && permission === 'granted'}
               disabled={permission === 'unsupported'}
+              accessibilityLabel="Send me reminders"
               onValueChange={async (on) => {
                 if (on && permission !== 'granted') {
                   const result = await actions.askForNotificationPermission();
                   if (result !== 'granted') {
                     Alert.alert(
                       'Notifications are off',
-                      'Turn them on for this app in your phone settings, then come back.',
+                      'Turn them on for this app in your device settings, then come back.',
                     );
                     return;
                   }
                 }
                 actions.updateSettings({ notificationsEnabled: on });
               }}
-              trackColor={{ true: color.accent, false: color.border }}
+              trackColor={{ true: theme.color.accent, false: theme.color.borderStrong }}
               thumbColor="#FFFFFF"
             />
           </View>
 
-          <View style={styles.divider} />
+          <Divider />
 
-          <TimeRow
+          <StepperRow
             label="Tonight's plan"
             hint="When you get told what to work on"
-            minutes={settings.planReminderMinutes}
-            onShift={(delta) => shiftTime('planReminderMinutes', delta)}
+            value={formatTimeOfDay(settings.planReminderMinutes)}
+            onDecrease={() => shiftTime('planReminderMinutes', -15)}
+            onIncrease={() => shiftTime('planReminderMinutes', 15)}
           />
-          <TimeRow
+          <StepperRow
             label="Check-in"
             hint="A nudge about anything still unticked"
-            minutes={settings.checkInMinutes}
-            onShift={(delta) => shiftTime('checkInMinutes', delta)}
+            value={formatTimeOfDay(settings.checkInMinutes)}
+            onDecrease={() => shiftTime('checkInMinutes', -15)}
+            onIncrease={() => shiftTime('checkInMinutes', 15)}
           />
         </Card>
-      </View>
+      </Gutter>
 
       <SectionTitle>How work gets split up</SectionTitle>
-      <View style={styles.block}>
+      <Gutter>
         <Card>
           <View style={styles.switchRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowTitle}>Finish a day early</Text>
-              <Text style={styles.rowHint}>
+              <Text variant="heading" color={theme.color.text}>
+                Finish a day early
+              </Text>
+              <Text variant="small" color={theme.color.textFaint} style={styles.hint}>
                 Schedules big assignments to be done the day before they're due.
               </Text>
             </View>
             <Switch
               value={settings.finishADayEarly}
+              accessibilityLabel="Finish a day early"
               onValueChange={(on) => actions.updateSettings({ finishADayEarly: on })}
-              trackColor={{ true: color.accent, false: color.border }}
+              trackColor={{ true: theme.color.accent, false: theme.color.borderStrong }}
               thumbColor="#FFFFFF"
             />
           </View>
 
-          <View style={styles.divider} />
+          <Divider />
 
           <StepperRow
             label="Longest sitting"
@@ -192,54 +228,96 @@ export function SettingsScreen() {
             }
           />
         </Card>
-      </View>
+      </Gutter>
+
+      <SectionTitle>Appearance</SectionTitle>
+      <Gutter>
+        <Card>
+          <Text variant="small" color={theme.color.textMuted} style={styles.explainer}>
+            Auto follows your device, switching to dark in the evening if your phone does.
+          </Text>
+          <View style={styles.segment}>
+            {THEMES.map((option) => {
+              const selected = settings.themePreference === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => actions.updateSettings({ themePreference: option.value })}
+                  style={({ pressed }) => [
+                    styles.segmentItem,
+                    selected && { backgroundColor: theme.color.accent },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text variant="body" color={selected ? theme.color.onAccent : theme.color.textMuted}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+      </Gutter>
 
       <SectionTitle
         trailing={
-          <Pressable onPress={() => setAddingSubject(true)} hitSlop={10}>
-            <Text style={styles.link}>+ Add</Text>
+          <Pressable onPress={() => setAddingSubject(true)} hitSlop={10} accessibilityRole="button">
+            <Text variant="small" color={theme.color.accent}>
+              + Add
+            </Text>
           </Pressable>
         }
       >
         Your classes
       </SectionTitle>
-      <View style={styles.block}>
-        {data.subjects.map((subject) => (
-          <Card key={subject.id} style={styles.subjectRow}>
-            <View style={[styles.subjectDot, { backgroundColor: subject.color }]} />
-            <Pressable
-              style={{ flex: 1 }}
-              onPress={() => setRenaming({ id: subject.id, name: subject.name })}
-            >
-              <Text style={styles.rowTitle}>{subject.name}</Text>
-              <Text style={styles.rowHint}>
-                {data.assignments.filter((a) => a.subjectId === subject.id).length} assignments
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => confirmDeleteSubject(subject.id, subject.name)}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel={`Delete ${subject.name}`}
-            >
-              <Text style={styles.remove}>Remove</Text>
-            </Pressable>
-          </Card>
-        ))}
-      </View>
+      <Gutter>
+        {data.subjects.map((subject) => {
+          const colors = theme.subject(subject.color);
+          return (
+            <Card key={subject.id} style={styles.subjectRow}>
+              <View style={[styles.subjectDot, { backgroundColor: colors.dot }]} />
+              <Pressable
+                style={{ flex: 1 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Rename ${subject.name}`}
+                onPress={() => setRenaming({ id: subject.id, name: subject.name })}
+              >
+                <Text variant="heading" color={theme.color.text}>
+                  {subject.name}
+                </Text>
+                <Text variant="small" color={theme.color.textFaint} style={styles.hint}>
+                  {data.assignments.filter((a) => a.subjectId === subject.id).length} assignments
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => confirmDeleteSubject(subject.id, subject.name)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={`Delete ${subject.name}`}
+              >
+                <Text variant="small" color={theme.color.textFaint}>
+                  Remove
+                </Text>
+              </Pressable>
+            </Card>
+          );
+        })}
+      </Gutter>
 
       <SectionTitle>Your data</SectionTitle>
-      <View style={styles.block}>
+      <Gutter>
         <Card>
-          <Text style={styles.explainer}>
-            Everything lives on this phone. There is no account, nothing is uploaded, and nobody else
+          <Text variant="small" color={theme.color.textMuted} style={styles.explainer}>
+            Everything lives on this device. There is no account, nothing is uploaded, and nobody else
             can see it.
           </Text>
           <View style={{ marginTop: space(4) }}>
             <Button label="Erase everything" kind="danger" onPress={confirmReset} />
           </View>
         </Card>
-      </View>
+      </Gutter>
 
       <PromptModal
         visible={addingSubject}
@@ -266,28 +344,6 @@ export function SettingsScreen() {
   );
 }
 
-function TimeRow({
-  label,
-  hint,
-  minutes,
-  onShift,
-}: {
-  label: string;
-  hint: string;
-  minutes: number;
-  onShift: (deltaMinutes: number) => void;
-}) {
-  return (
-    <StepperRow
-      label={label}
-      hint={hint}
-      value={formatTimeOfDay(minutes)}
-      onDecrease={() => onShift(-15)}
-      onIncrease={() => onShift(15)}
-    />
-  );
-}
-
 function StepperRow({
   label,
   hint,
@@ -301,11 +357,17 @@ function StepperRow({
   onDecrease: () => void;
   onIncrease: () => void;
 }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={styles.stepperRow}>
       <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle}>{label}</Text>
-        <Text style={styles.rowHint}>{hint}</Text>
+        <Text variant="heading" color={theme.color.text}>
+          {label}
+        </Text>
+        <Text variant="small" color={theme.color.textFaint} style={styles.hint}>
+          {hint}
+        </Text>
       </View>
       <View style={styles.stepper}>
         <Pressable
@@ -315,9 +377,13 @@ function StepperRow({
           accessibilityLabel={`Decrease ${label}`}
           style={({ pressed }) => [styles.stepperButton, pressed && { opacity: 0.6 }]}
         >
-          <Text style={styles.stepperSymbol}>−</Text>
+          <Text variant="heading" color={theme.color.text} style={{ lineHeight: 20 }}>
+            −
+          </Text>
         </Pressable>
-        <Text style={styles.stepperValue}>{value}</Text>
+        <Text variant="body" color={theme.color.text} style={styles.stepperValue}>
+          {value}
+        </Text>
         <Pressable
           onPress={onIncrease}
           hitSlop={8}
@@ -325,59 +391,63 @@ function StepperRow({
           accessibilityLabel={`Increase ${label}`}
           style={({ pressed }) => [styles.stepperButton, pressed && { opacity: 0.6 }]}
         >
-          <Text style={styles.stepperSymbol}>+</Text>
+          <Text variant="heading" color={theme.color.text} style={{ lineHeight: 20 }}>
+            +
+          </Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  block: { paddingHorizontal: space(5), gap: space(2) },
-  sectionMeta: { ...font.tiny, color: color.textFaint },
-  explainer: { ...font.small, color: color.textMuted, lineHeight: 19 },
-  link: { ...font.small, color: color.accent },
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    explainer: { lineHeight: 19 },
+    hint: { marginTop: 2, lineHeight: 18 },
 
-  capacityRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: space(4), gap: space(1) },
-  capacityDay: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: space(2),
-    borderRadius: radius.sm,
-    backgroundColor: color.surfaceHigh,
-    minHeight: TAP_TARGET,
-    justifyContent: 'center',
-  },
-  capacityDayOff: { backgroundColor: color.surfaceSunken },
-  capacityLabel: { ...font.tiny, color: color.textFaint },
-  capacityValue: { ...font.heading, color: color.text, marginTop: 2, fontVariant: ['tabular-nums'] },
-  capacityValueOff: { color: color.textFaint },
+    capacityRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: space(4), gap: space(1) },
+    capacityDay: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: space(2),
+      borderRadius: radius.sm,
+      backgroundColor: theme.color.surfaceHigh,
+      minHeight: TAP_TARGET,
+      justifyContent: 'center',
+    },
+    capacityDayOff: { backgroundColor: theme.color.surfaceSunken },
+    capacityValue: { marginTop: 2, fontVariant: ['tabular-nums'] },
 
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: space(3) },
-  rowTitle: { ...font.heading, color: color.text },
-  rowHint: { ...font.small, color: color.textFaint, marginTop: 2, lineHeight: 18 },
-  divider: { height: 1, backgroundColor: color.border, marginVertical: space(4) },
+    switchRow: { flexDirection: 'row', alignItems: 'center', gap: space(3) },
 
-  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(2) },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: space(2) },
-  stepperButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: color.surfaceHigh,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperSymbol: { ...font.heading, color: color.text, lineHeight: 20 },
-  stepperValue: {
-    ...font.body,
-    color: color.text,
-    minWidth: 74,
-    textAlign: 'center',
-    fontVariant: ['tabular-nums'],
-  },
+    stepperRow: { flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(2) },
+    stepper: { flexDirection: 'row', alignItems: 'center', gap: space(2) },
+    stepperButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: theme.color.surfaceHigh,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepperValue: { minWidth: 78, textAlign: 'center', fontVariant: ['tabular-nums'] },
 
-  subjectRow: { flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(3) },
-  subjectDot: { width: 12, height: 12, borderRadius: 6 },
-  remove: { ...font.small, color: color.textFaint },
-});
+    segment: {
+      flexDirection: 'row',
+      gap: space(1),
+      marginTop: space(4),
+      padding: space(1),
+      borderRadius: radius.md,
+      backgroundColor: theme.color.surfaceSunken,
+    },
+    segmentItem: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: TAP_TARGET - 6,
+      borderRadius: radius.sm,
+    },
+
+    subjectRow: { flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(3) },
+    subjectDot: { width: 12, height: 12, borderRadius: 6 },
+  });

@@ -39,6 +39,42 @@ stops reading the pings.
 | **Add** | Fast capture, with a live preview of the resulting plan |
 | **You** | Time available per weekday, reminder times, classes, data |
 
+## Design
+
+**Light and dark, both first-class.** The app gets opened in a bright classroom
+and under a desk lamp at 9pm. `Auto` follows the device; Light and Dark override
+it. Light mode is a warm off-white rather than pure white, which glares.
+
+**Colour is checked, not eyeballed.** `src/ui/color.ts` does the WCAG maths and
+`src/ui/theme.tsx` derives every subject colour per scheme, pushing each role
+(chip fill, dot, tinted background) until it clears its contrast bar. The
+palette is covered by tests: text hits AA on every surface, and so does a colour
+a student picked that we never shipped. A hue that fails is a failing test
+rather than something a student discovers by squinting.
+
+**Colour is never the only signal.** Every subject chip carries its name, every
+status carries text. The eight subject hues are separated by lightness as well
+as hue, so the pairs most often confused stay distinguishable, but nothing in
+the interface depends on telling them apart.
+
+**Type scales, within limits.** Every size declares how far Dynamic Type may
+stretch it. A student who turns text size up still gets a readable plan instead
+of a heading that shoves the rest of the row off screen.
+
+## iPhone and iPad
+
+One layout, three size classes, chosen on the window rather than the device so
+that an iPad in Split View is treated as the narrow surface it actually is.
+
+| Width | Navigation | Layout |
+| --- | --- | --- |
+| under 700 | bottom tabs | single column, full bleed |
+| 700–999 | bottom tabs | single column, capped at a readable width |
+| 1000+ | side rail | Today splits into two columns |
+
+All four orientations are supported and `requireFullScreen` is off, so the app
+is a proper multitasking citizen on iPad rather than a stretched phone app.
+
 ## Running it
 
 ```bash
@@ -51,10 +87,56 @@ npm run typecheck       # TypeScript
 
 ### Notifications need a real device
 
-Local scheduled notifications work on a phone, not in the web preview. Expo Go is
-fine for trying the app out, but for reliable reminders build a development build
-(`npx expo run:ios` / `npx expo run:android`, or EAS), which is also what you
-want before putting this on a student's actual phone.
+Local scheduled notifications work on a phone or iPad, not in the web preview.
+Expo Go is fine for trying the app out, but for reliable reminders build a
+development build, which is also what you want before putting this on a
+student's actual device.
+
+## Shipping to the App Store
+
+The project is configured for submission and stays on the managed workflow: the
+native projects are generated at build time and never committed. `npm run
+prebuild` regenerates them locally if you want to look.
+
+What is already set up:
+
+- **Bundle identifier** `com.hwpacer.app`, version `1.0.0`, remote build numbers
+  with `autoIncrement` on the production profile.
+- **Icons** for iOS, Android adaptive (foreground / background / monochrome) and
+  web, generated from one vector mark.
+- **Splash screen** with separate light and dark variants.
+- **Privacy manifest** (`NSPrivacyAccessedAPITypes`) declaring the UserDefaults
+  access that local storage requires, reason `CA92.1`, with tracking set to
+  false and no collected data types. Verified in the generated
+  `PrivacyInfo.xcprivacy`.
+- **Export compliance** pre-answered via `ITSAppUsesNonExemptEncryption`, so
+  every submission skips that question.
+- **EAS profiles** for development, preview and production.
+
+```bash
+npx eas build --platform ios --profile preview      # TestFlight-able build
+npm run build:ios                                   # production build
+npm run submit:ios                                  # upload to App Store Connect
+```
+
+### What still needs a human
+
+These need your Apple account and cannot be done from a repository:
+
+1. An **Apple Developer Program** membership, and the bundle identifier
+   registered against it. Change `ios.bundleIdentifier` if you want your own.
+2. `npx eas init` to link the project, then `npx eas credentials` (or let EAS
+   generate them) for signing.
+3. An App Store Connect listing: name, subtitle, description, keywords,
+   screenshots for both iPhone and iPad, and an age rating.
+4. A **privacy policy URL**. App Store Connect requires one even though this app
+   collects nothing; "this app stores everything on your device and transmits
+   nothing" is the whole policy, but it has to be hosted somewhere.
+5. A decision on the **Kids Category**. If you market this to under-13s, Apple
+   applies stricter rules and COPPA is in scope. Collecting no data, having no
+   accounts, no analytics, no ads and no outbound links puts the app in a good
+   position for it, but it is a declaration you have to make deliberately — and
+   if you add anything third-party later, revisit it.
 
 ## How the pacing works
 
@@ -86,10 +168,10 @@ src/
   storage/        AsyncStorage persistence, with repair for malformed data
   notifications/  reminder text (pure) and the Expo scheduling wrapper
   state/          reducer, persistence, plan memoisation, reminder syncing
-  ui/             theme, components, screens
+  ui/             colour maths, theme, components, screens
 ```
 
 The split is deliberate: everything that decides *what the student should do* is
 pure TypeScript with no React or native dependencies, so it can be tested
 directly. `npm test` covers the planner, the date maths, the reminder text, the
-reducer, and the storage repair logic.
+reducer, the storage repair logic, and the palette's contrast guarantees.
