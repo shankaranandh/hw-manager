@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Homework Pacer",
+    "slug": "hw-manager",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "hwpacer",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#12131A",
+    "primaryColor": "#5B8DEF",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hwpacer.app"
+    },
+    "android": {
+      "package": "com.hwpacer.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#12131A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#5B8DEF"
+        }
+      ]
+    ],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ]
+  }
+}
