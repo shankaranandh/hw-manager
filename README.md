@@ -124,6 +124,41 @@ npm run build:ios                                   # production build
 npm run submit:ios                                  # upload to App Store Connect
 ```
 
+### Website: privacy policy and support
+
+App Store Connect requires a **Privacy Policy URL** and a **Support URL** before
+you can submit, even for an app that collects nothing. `docs/` holds both, plus a
+small landing page, styled from the app's own palette and working in light and
+dark.
+
+Publish them by enabling GitHub Pages on the repository: **Settings → Pages →
+Source: Deploy from a branch → `main` / `/docs`**. That gives you:
+
+| App Store Connect field | URL |
+| --- | --- |
+| Privacy Policy URL | `https://<user>.github.io/hw-manager/privacy.html` |
+| Support URL | `https://<user>.github.io/hw-manager/support.html` |
+| Marketing URL (optional) | `https://<user>.github.io/hw-manager/` |
+
+Every claim in the privacy policy was checked against the code: no `fetch` or
+socket anywhere in `src/`, no push-token calls, and no analytics, advertising or
+crash-reporting dependency. If you ever add one, update `docs/privacy.html` in
+the same commit.
+
+### Screenshots
+
+`scripts/store-screenshots.mjs` renders the required sets from the real app:
+
+```bash
+npm run web                             # one terminal
+npx playwright install chromium         # first run only
+node scripts/store-screenshots.mjs      # another terminal
+```
+
+It produces the 6.9-inch iPhone set at 1290×2796 and the 13-inch iPad set at
+2048×2732, in both light and dark, and asserts the sizes. iPad shots are not
+optional once `supportsTablet` is on.
+
 ### What still needs a human
 
 These need your Apple account and cannot be done from a repository:
@@ -147,9 +182,8 @@ These need your Apple account and cannot be done from a repository:
    Create the App Store Connect record early even if the build is not ready. It
    reserves the name for 180 days, and losing a name you have built a listing
    around is miserable.
-4. A **privacy policy URL**. App Store Connect requires one even though this app
-   collects nothing; "this app stores everything on your device and transmits
-   nothing" is the whole policy, but it has to be hosted somewhere.
+4. Turning on GitHub Pages, so the privacy and support URLs above resolve.
+   App Store Connect rejects a policy URL that 404s.
 5. A decision on the **Kids Category**. If you market this to under-13s, Apple
    applies stricter rules and COPPA is in scope. Collecting no data, having no
    accounts, no analytics, no ads and no outbound links puts the app in a good

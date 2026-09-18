@@ -1,0 +1,89 @@
+/* Shares the app's palette so the site and the product read as one thing. */
+:root {
+  color-scheme: light dark;
+  --bg: #f5f6fb;
+  --surface: #ffffff;
+  --border: #dee2ed;
+  --text: #161925;
+  --muted: #555c73;
+  --faint: #7a8299;
+  --accent: #4b45d1;
+  --accent-soft: #e6e5fa;
+  --success: #15803d;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1118;
+    --surface: #191c26;
+    --border: #2c3142;
+    --text: #f2f4fa;
+    --muted: #a7aec4;
+    --faint: #79819a;
+    --accent: #9a95ff;
+    --accent-soft: #272743;
+    --success: #54d98c;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0 20px 80px;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+main { max-width: 680px; margin: 0 auto; }
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 40px 0 8px;
+}
+header img { width: 56px; height: 56px; border-radius: 13px; }
+header h1 { font-size: 30px; margin: 0; letter-spacing: -0.5px; }
+header p { margin: 2px 0 0; color: var(--muted); font-size: 15px; }
+
+h2 { font-size: 20px; margin: 36px 0 10px; letter-spacing: -0.2px; }
+h3 { font-size: 16px; margin: 24px 0 6px; }
+p, li { color: var(--muted); }
+strong { color: var(--text); }
+a { color: var(--accent); }
+
+.updated { color: var(--faint); font-size: 14px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 22px;
+  margin: 20px 0;
+}
+.card h2 { margin-top: 0; }
+
+.headline {
+  background: var(--accent-soft);
+  border: none;
+  border-radius: 16px;
+  padding: 22px;
+  margin: 24px 0;
+}
+.headline p { color: var(--text); font-size: 17px; margin: 0; }
+
+ul { padding-left: 22px; }
+li { margin: 6px 0; }
+
+nav { margin: 28px 0 0; font-size: 15px; }
+nav a { margin-right: 18px; }
+
+footer {
+  margin-top: 56px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  color: var(--faint);
+  font-size: 14px;
+}

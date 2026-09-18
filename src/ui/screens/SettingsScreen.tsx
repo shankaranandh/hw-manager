@@ -19,7 +19,11 @@ import { TAP_TARGET, radius, space, useTheme, type Theme } from '../theme';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 /** The choices a student will actually recognise as "how long I'll sit there". */
-const CAPACITY_STEPS = [0, 15, 30, 45, 60, 90, 120];
+export const CAPACITY_STEPS = [0, 15, 30, 45, 60, 90, 120];
+
+/** The next capacity a day takes when tapped: upwards, wrapping at the top. */
+export const nextCapacity = (current: number): number =>
+  CAPACITY_STEPS.find((step) => step > current) ?? CAPACITY_STEPS[0];
 const THEMES: { value: ThemePreference; label: string }[] = [
   { value: 'system', label: 'Auto' },
   { value: 'light', label: 'Light' },
@@ -36,12 +40,15 @@ export function SettingsScreen() {
 
   const cycleCapacity = (index: number) => {
     const current = settings.capacityByWeekday[index];
-    const position = CAPACITY_STEPS.indexOf(current);
-    const next = CAPACITY_STEPS[(position + 1) % CAPACITY_STEPS.length] ?? 60;
+    // Step to the next larger stop and wrap at the top, rather than looking the
+    // current value up in the list. A day sitting on a value that is not itself
+    // a stop — the 20 minute default for Friday, or anything saved by an older
+    // version — would otherwise jump straight to zero on the first tap.
     const capacity = [...settings.capacityByWeekday] as CapacityByWeekday;
-    capacity[index] = next;
+    capacity[index] = nextCapacity(current);
     actions.updateSettings({ capacityByWeekday: capacity });
   };
+
 
   const shiftTime = (key: 'planReminderMinutes' | 'checkInMinutes', deltaMinutes: number) => {
     actions.updateSettings({ [key]: (settings[key] + deltaMinutes + 1440) % 1440 });
