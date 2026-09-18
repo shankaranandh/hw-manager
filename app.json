@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Homework Pacer",
-    "slug": "hw-manager",
+    "name": "Chunks",
+    "slug": "chunks",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
-    "scheme": "hwpacer",
+    "scheme": "chunks",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F5F6FB",
     "primaryColor": "#4B45D1",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "requireFullScreen": false,
-      "bundleIdentifier": "com.hwpacer.app",
+      "bundleIdentifier": "io.github.shankaranandh.chunks",
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -34,7 +34,7 @@
       }
     },
     "android": {
-      "package": "com.hwpacer.app",
+      "package": "io.github.shankaranandh.chunks",
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundImage": "./assets/android-icon-background.png",

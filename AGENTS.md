@@ -1,4 +1,4 @@
-# Homework Pacer — notes for agents
+# Chunks — notes for agents
 
 Expo SDK 57 / React Native 0.86 / React 19. The versioned docs are at
 https://docs.expo.dev/versions/v57.0.0/ — check them before using an Expo API,

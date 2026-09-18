@@ -1,4 +1,6 @@
-# Homework Pacer
+# Chunks
+
+**Homework, paced not crammed.**
 
 A phone app for students who write their homework down in class and then have no
 idea what to actually do about it tonight.
@@ -100,8 +102,11 @@ prebuild` regenerates them locally if you want to look.
 
 What is already set up:
 
-- **Bundle identifier** `com.hwpacer.app`, version `1.0.0`, remote build numbers
-  with `autoIncrement` on the production profile.
+- **Bundle identifier** `io.github.shankaranandh.chunks`, version `1.0.0`, remote
+  build numbers with `autoIncrement` on the production profile. Reverse-DNS of a
+  domain you control, which costs nothing and cannot collide with anyone else's;
+  Apple never verifies domain ownership for bundle ids. Free to change right up
+  until the App Store Connect record exists, and permanent after that.
 - **Icons** for iOS, Android adaptive (foreground / background / monochrome) and
   web, generated from one vector mark.
 - **Splash screen** with separate light and dark variants.
@@ -127,8 +132,21 @@ These need your Apple account and cannot be done from a repository:
    registered against it. Change `ios.bundleIdentifier` if you want your own.
 2. `npx eas init` to link the project, then `npx eas credentials` (or let EAS
    generate them) for signing.
-3. An App Store Connect listing: name, subtitle, description, keywords,
-   screenshots for both iPhone and iPad, and an age rating.
+3. An App Store Connect listing. Suggested starting point:
+
+   | Field | Value |
+   | --- | --- |
+   | Name (30 chars) | `Chunks` |
+   | Subtitle (30 chars) | `Homework, paced not crammed` |
+   | Keywords (100 chars) | `planner,study,school,assignment,due,reminder,student,agenda,organizer,teen` |
+
+   Leave "homework" out of the keywords: it is already in the subtitle, and
+   Apple ignores repeats. You also need screenshots for both iPhone and iPad,
+   and an age rating.
+
+   Create the App Store Connect record early even if the build is not ready. It
+   reserves the name for 180 days, and losing a name you have built a listing
+   around is miserable.
 4. A **privacy policy URL**. App Store Connect requires one even though this app
    collects nothing; "this app stores everything on your device and transmits
    nothing" is the whole policy, but it has to be hosted somewhere.
