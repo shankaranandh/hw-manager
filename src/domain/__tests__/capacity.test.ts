@@ -1,4 +1,4 @@
-import { CAPACITY_STEPS, nextCapacity } from '../screens/SettingsScreen';
+import { CAPACITY_STEPS, nextCapacity } from '../capacity';
 
 describe('nextCapacity', () => {
   it('steps up through the offered values', () => {

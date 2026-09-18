@@ -1,10 +1,24 @@
 import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from 'react-native';
 
 import { dayRange, fromDayKey, monthDayLabel, relativeDayLabel, weekdayShort } from '../../domain/dates';
 import { SIZE_LABELS, SIZE_MINUTES, type DayKey, type Size, type Subject } from '../../domain/types';
 import { TAP_TARGET, radius, space, useTheme, type Theme } from '../theme';
-import { Label, Text } from './primitives';
+import { Text } from './primitives';
+
+/**
+ * A spoken-sounding question rather than a shouty form label. The all-caps
+ * micro-label above every field is what made this screen read like a generated
+ * form instead of something a person designed.
+ */
+export function Prompt({ children }: { children: React.ReactNode }) {
+  const theme = useTheme();
+  return (
+    <Text variant="heading" color={theme.color.textMuted} style={{ marginBottom: space(3) }}>
+      {children}
+    </Text>
+  );
+}
 
 /**
  * A horizontal strip of upcoming days.
@@ -29,7 +43,7 @@ export function DuePicker({
 
   return (
     <View>
-      <Label>When is it due?</Label>
+      <Prompt>When is it due?</Prompt>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
         {options.map((date) => {
           const selected = date === value;
@@ -67,6 +81,13 @@ export function DuePicker({
 }
 
 /** Students cannot estimate minutes, but they can tell you how big it feels. */
+const SIZE_FACE: Record<Size, string> = {
+  quick: '⚡️',
+  medium: '📗',
+  big: '📚',
+  huge: '🏔️',
+};
+
 export function SizePicker({ value, onChange }: { value: Size; onChange: (size: Size) => void }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -74,8 +95,8 @@ export function SizePicker({ value, onChange }: { value: Size; onChange: (size: 
 
   return (
     <View>
-      <Label>How big is it?</Label>
-      <View style={styles.sizeRow}>
+      <Prompt>How big is it?</Prompt>
+      <View style={styles.sizeGrid}>
         {sizes.map((size) => {
           const selected = size === value;
           return (
@@ -85,17 +106,20 @@ export function SizePicker({ value, onChange }: { value: Size; onChange: (size: 
               accessibilityState={{ selected }}
               accessibilityLabel={`${SIZE_LABELS[size].label}, ${SIZE_LABELS[size].hint}`}
               onPress={() => onChange(size)}
-              style={({ pressed }) => [styles.size, selected && styles.daySelected, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.sizeTile, selected && styles.tileSelected, pressed && styles.pressed]}
             >
-              <Text variant="body" color={selected ? theme.color.onAccent : theme.color.text}>
+              <RNText style={styles.face} accessibilityElementsHidden importantForAccessibility="no">
+                {SIZE_FACE[size]}
+              </RNText>
+              <Text variant="heading" color={selected ? theme.color.onAccent : theme.color.text}>
                 {SIZE_LABELS[size].label}
               </Text>
               <Text
-                variant="tiny"
+                variant="small"
                 color={selected ? theme.color.onAccent : theme.color.textFaint}
                 style={styles.sizeHint}
               >
-                {SIZE_LABELS[size].hint}
+                {SIZE_LABELS[size].hint.replace('about ', '')}
               </Text>
             </Pressable>
           );
@@ -130,7 +154,7 @@ export function SubjectPicker({
 
   return (
     <View>
-      <Label>Which class?</Label>
+      <Prompt>Which class?</Prompt>
       <View style={styles.subjectWrap}>
         {subjects.map((subject) => {
           const selected = subject.id === value;
@@ -193,20 +217,24 @@ const makeStyles = (theme: Theme) =>
     daySelected: { backgroundColor: theme.color.accent, borderColor: theme.color.accent },
     pressed: { opacity: 0.7 },
 
-    sizeRow: { flexDirection: 'row', gap: space(2) },
-    size: {
-      flex: 1,
-      minHeight: TAP_TARGET + 14,
-      borderRadius: radius.md,
-      borderWidth: 1,
+    sizeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space(3) },
+    sizeTile: {
+      // Two per row, big enough to hit without looking.
+      width: '47%',
+      flexGrow: 1,
+      minHeight: 104,
+      borderRadius: radius.lg,
+      borderWidth: 1.5,
       borderColor: theme.color.border,
       backgroundColor: theme.color.surface,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: space(1),
-      paddingVertical: space(2),
+      paddingVertical: space(3),
+      gap: 2,
     },
-    sizeHint: { marginTop: 2, textAlign: 'center' },
+    tileSelected: { backgroundColor: theme.color.accent, borderColor: theme.color.accent },
+    face: { fontSize: 26, marginBottom: 2 },
+    sizeHint: { textAlign: 'center' },
 
     subjectWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space(2) },
     subject: {

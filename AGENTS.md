@@ -32,3 +32,17 @@ particular).
 - Layout branches on `theme.sizeClass`, which is computed from the window, so
   iPad Split View behaves like the narrow surface it is. Do not branch on
   `Platform.isPad`.
+
+## Platform idiom
+
+- Settings and any list of options use the inset grouped list in
+  `src/ui/components/List.tsx`: terse label, value right-aligned in grey,
+  chevron, separators inset to the label. Explanation goes in one section footer,
+  never under every row. A custom card with a paragraph under each control is a
+  web form, not an iOS screen.
+- Depth goes behind a chevron into a `SubScreen`, rather than stacking every
+  control onto one page.
+- Icons come from `@expo/vector-icons/Ionicons`, not unicode glyphs.
+- `Prompt` in `pickers.tsx` is the heading style for capture screens: a spoken
+  question, not an all-caps micro-label. A stack of identical shouty labels is
+  what makes a screen read as generated.

@@ -105,6 +105,41 @@ export function shortDayLabel(key: DayKey, today: DayKey): string {
   return monthDayLabel(key);
 }
 
+const MONTH_LONG = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+export function monthYearLabel(key: DayKey): string {
+  const date = fromDayKey(key);
+  return `${MONTH_LONG[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+/**
+ * Spells out the span a week covers, without repeating a month or year that
+ * both ends share: "15 - 21 September 2026", "29 June - 5 July 2026".
+ */
+export function dateRangeLabel(start: DayKey, end: DayKey): string {
+  const a = fromDayKey(start);
+  const b = fromDayKey(end);
+  const sameYear = a.getFullYear() === b.getFullYear();
+  const sameMonth = sameYear && a.getMonth() === b.getMonth();
+
+  if (sameMonth) {
+    return `${a.getDate()} – ${b.getDate()} ${MONTH_LONG[a.getMonth()]} ${a.getFullYear()}`;
+  }
+  if (sameYear) {
+    return `${a.getDate()} ${MONTH_SHORT[a.getMonth()]} – ${b.getDate()} ${MONTH_SHORT[b.getMonth()]} ${a.getFullYear()}`;
+  }
+  return `${a.getDate()} ${MONTH_SHORT[a.getMonth()]} ${a.getFullYear()} – ${b.getDate()} ${MONTH_SHORT[b.getMonth()]} ${b.getFullYear()}`;
+}
+
+/** "Thursday, 18 September" — the full date, for a selected day heading. */
+export function fullDayLabel(key: DayKey): string {
+  const date = fromDayKey(key);
+  return `${WEEKDAY_LONG[date.getDay()]}, ${date.getDate()} ${MONTH_LONG[date.getMonth()]}`;
+}
+
 /** "45 min" / "1 hr" / "1 hr 30 min" */
 export function formatMinutes(minutes: number): string {
   const rounded = Math.max(0, Math.round(minutes));

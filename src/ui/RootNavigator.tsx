@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '../state/store';
@@ -12,11 +13,15 @@ import { TAP_TARGET, radius, space, useTheme, type Theme } from './theme';
 
 type Tab = 'today' | 'week' | 'add' | 'settings';
 
-const TABS: { key: Tab; label: string; icon: string }[] = [
-  { key: 'today', label: 'Today', icon: '◉' },
-  { key: 'week', label: 'Week', icon: '▦' },
-  { key: 'add', label: 'Add', icon: '＋' },
-  { key: 'settings', label: 'You', icon: '⚙' },
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+// Real icons rather than unicode glyphs, and the filled/outline pair iOS uses to
+// show which tab is active.
+const TABS: { key: Tab; label: string; icon: IconName; iconActive: IconName }[] = [
+  { key: 'today', label: 'Today', icon: 'today-outline', iconActive: 'today' },
+  { key: 'week', label: 'Week', icon: 'calendar-outline', iconActive: 'calendar' },
+  { key: 'add', label: 'Add', icon: 'add-circle-outline', iconActive: 'add-circle' },
+  { key: 'settings', label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
 ];
 
 export function RootNavigator() {
@@ -47,10 +52,10 @@ export function RootNavigator() {
     </>
   );
 
-  const items = TABS.map(({ key, label, icon }) => {
+  const items = TABS.map(({ key, label, icon, iconActive }) => {
     const active = key === tab;
     const badge = key === 'today' && outstanding > 0 && tab !== 'today' ? outstanding : 0;
-    return { key, label, icon, active, badge };
+    return { key, label, icon: active ? iconActive : icon, active, badge };
   });
 
   // On a full-width iPad a bottom tab bar strands the controls a long way from
@@ -73,9 +78,11 @@ export function RootNavigator() {
               ]}
             >
               <View>
-                <Text variant="title" color={item.active ? theme.color.accent : theme.color.textFaint}>
-                  {item.icon}
-                </Text>
+                <Ionicons
+                  name={item.icon}
+                  size={26}
+                  color={item.active ? theme.color.accent : theme.color.textFaint}
+                />
                 {item.badge > 0 ? <Badge count={item.badge} /> : null}
               </View>
               <Text variant="tiny" color={item.active ? theme.color.accent : theme.color.textFaint}>
@@ -103,9 +110,11 @@ export function RootNavigator() {
             style={({ pressed }) => [styles.tab, pressed && { opacity: 0.6 }]}
           >
             <View>
-              <Text variant="title" color={item.active ? theme.color.accent : theme.color.textFaint}>
-                {item.icon}
-              </Text>
+              <Ionicons
+                name={item.icon}
+                size={25}
+                color={item.active ? theme.color.accent : theme.color.textFaint}
+              />
               {item.badge > 0 ? <Badge count={item.badge} /> : null}
             </View>
             <Text variant="tiny" color={item.active ? theme.color.accent : theme.color.textFaint}>

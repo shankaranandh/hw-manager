@@ -1,68 +1,61 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
+import { nextCapacity } from '../../domain/capacity';
 import { formatMinutes, formatTimeOfDay } from '../../domain/dates';
 import type { CapacityByWeekday, ThemePreference } from '../../domain/types';
 import { useApp } from '../../state/store';
-import {
-  Button,
-  Card,
-  Divider,
-  Gutter,
-  Label,
-  Screen,
-  SectionTitle,
-  Text,
-} from '../components/primitives';
+import { ListAction, ListRow, ListSection } from '../components/List';
 import { PromptModal } from '../components/PromptModal';
+import { Screen, Text } from '../components/primitives';
+import { SubScreen } from '../components/SubScreen';
+import { TimePickerSheet } from '../components/TimePickerSheet';
 import { TAP_TARGET, radius, space, useTheme, type Theme } from '../theme';
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-/** The choices a student will actually recognise as "how long I'll sit there". */
-export const CAPACITY_STEPS = [0, 15, 30, 45, 60, 90, 120];
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-/** The next capacity a day takes when tapped: upwards, wrapping at the top. */
-export const nextCapacity = (current: number): number =>
-  CAPACITY_STEPS.find((step) => step > current) ?? CAPACITY_STEPS[0];
-const THEMES: { value: ThemePreference; label: string }[] = [
-  { value: 'system', label: 'Auto' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-];
+const THEME_LABEL: Record<ThemePreference, string> = {
+  system: 'Automatic',
+  light: 'Light',
+  dark: 'Dark',
+};
 
 export function SettingsScreen() {
   const { data, permission, actions } = useApp();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { settings } = data;
+
+  const [pane, setPane] = useState<null | 'time' | 'pacing' | 'classes' | 'appearance'>(null);
+  const [timePicker, setTimePicker] = useState<null | 'plan' | 'checkIn'>(null);
   const [addingSubject, setAddingSubject] = useState(false);
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
 
-  const cycleCapacity = (index: number) => {
-    const current = settings.capacityByWeekday[index];
-    // Step to the next larger stop and wrap at the top, rather than looking the
-    // current value up in the list. A day sitting on a value that is not itself
-    // a stop — the 20 minute default for Friday, or anything saved by an older
-    // version — would otherwise jump straight to zero on the first tap.
+  const weekTotal = settings.capacityByWeekday.reduce((sum, m) => sum + m, 0);
+  const remindersOn = settings.notificationsEnabled && permission === 'granted';
+
+  const setCapacity = (index: number, minutes: number) => {
     const capacity = [...settings.capacityByWeekday] as CapacityByWeekday;
-    capacity[index] = nextCapacity(current);
+    capacity[index] = minutes;
     actions.updateSettings({ capacityByWeekday: capacity });
   };
 
-
-  const shiftTime = (key: 'planReminderMinutes' | 'checkInMinutes', deltaMinutes: number) => {
-    actions.updateSettings({ [key]: (settings[key] + deltaMinutes + 1440) % 1440 });
+  const toggleReminders = async (on: boolean) => {
+    if (on && permission !== 'granted') {
+      const result = await actions.askForNotificationPermission();
+      if (result !== 'granted') {
+        Alert.alert('Notifications are off', 'Turn them on for Chunks in your device settings, then come back.');
+        return;
+      }
+    }
+    actions.updateSettings({ notificationsEnabled: on });
   };
 
   const confirmReset = () => {
-    Alert.alert(
-      'Erase everything?',
-      'Every assignment, class and setting goes back to the start. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Erase', style: 'destructive', onPress: () => actions.resetEverything() },
-      ],
-    );
+    Alert.alert('Erase Everything?', 'Every assignment, class and setting goes back to the start.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Erase', style: 'destructive', onPress: () => actions.resetEverything() },
+    ]);
   };
 
   const confirmDeleteSubject = (id: string, name: string) => {
@@ -70,265 +63,179 @@ export function SettingsScreen() {
       Alert.alert('Keep at least one class', 'Assignments have to belong to something.');
       return;
     }
-    Alert.alert(`Delete ${name}?`, 'Its assignments will move to your first class.', [
+    Alert.alert(`Delete ${name}?`, 'Its assignments move to your first class.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => actions.deleteSubject(id) },
     ]);
   };
 
-  const weekTotal = settings.capacityByWeekday.reduce((sum, m) => sum + m, 0);
-
   return (
-    <Screen title="Settings" subtitle="How you want the week paced">
-      <SectionTitle
-        trailing={
-          <Text variant="tiny" color={theme.color.textFaint}>
-            {formatMinutes(weekTotal)} a week
-          </Text>
+    <Screen title="Settings">
+      <ListSection header="Homework time">
+        <ListRow
+          label="Time each day"
+          value={formatMinutes(weekTotal) + ' a week'}
+          icon="time"
+          onPress={() => setPane('time')}
+        />
+        <ListRow label="Pacing" value={formatMinutes(settings.maxChunkMinutes) + ' max'} icon="options" onPress={() => setPane('pacing')} />
+      </ListSection>
+
+      <ListSection
+        header="Reminders"
+        footer={
+          permission === 'unsupported'
+            ? 'Reminders need a phone or iPad.'
+            : permission !== 'granted'
+              ? 'Notifications are switched off for Chunks in your device settings.'
+              : 'Two a night at most, and nothing at all on a free evening.'
         }
       >
-        Time you'll actually give it
-      </SectionTitle>
-      <Gutter>
-        <Card>
-          <Text variant="small" color={theme.color.textMuted} style={styles.explainer}>
-            Tap a day to change how long you're willing to work on it. Set busy days to zero and the
-            plan will route around them.
-          </Text>
-          <View style={styles.capacityRow}>
-            {WEEKDAYS.map((label, index) => {
-              const minutes = settings.capacityByWeekday[index];
-              return (
-                <Pressable
-                  key={label}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${label}: ${formatMinutes(minutes)}`}
-                  accessibilityHint="Double tap to change"
-                  onPress={() => cycleCapacity(index)}
-                  style={({ pressed }) => [
-                    styles.capacityDay,
-                    minutes === 0 && styles.capacityDayOff,
-                    pressed && { opacity: 0.6 },
-                  ]}
-                >
-                  <Text variant="tiny" color={theme.color.textFaint}>
-                    {label}
-                  </Text>
-                  <Text
-                    variant="heading"
-                    color={minutes === 0 ? theme.color.textFaint : theme.color.text}
-                    style={styles.capacityValue}
-                  >
-                    {minutes === 0 ? '—' : minutes}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Card>
-      </Gutter>
+        <ListRow
+          label="Reminders"
+          icon="notifications"
+          iconColor={theme.color.danger}
+          switchValue={remindersOn}
+          switchDisabled={permission === 'unsupported'}
+          onSwitchChange={toggleReminders}
+        />
+        {remindersOn ? (
+          <ListRow label="Tonight's plan" value={formatTimeOfDay(settings.planReminderMinutes)} onPress={() => setTimePicker('plan')} />
+        ) : null}
+        {remindersOn ? (
+          <ListRow label="Check-in" value={formatTimeOfDay(settings.checkInMinutes)} onPress={() => setTimePicker('checkIn')} />
+        ) : null}
+      </ListSection>
 
-      <SectionTitle>Reminders</SectionTitle>
-      <Gutter>
-        <Card>
-          <View style={styles.switchRow}>
-            <View style={{ flex: 1 }}>
-              <Text variant="heading" color={theme.color.text}>
-                Send me reminders
-              </Text>
-              <Text variant="small" color={theme.color.textFaint} style={styles.hint}>
-                {permission === 'unsupported'
-                  ? 'Only available on a phone or iPad, not in the web preview.'
-                  : permission === 'granted'
-                    ? 'Two a night at most: the plan, then a check-in.'
-                    : 'Notifications are switched off for this app in your device settings.'}
-              </Text>
-            </View>
-            <Switch
-              value={settings.notificationsEnabled && permission === 'granted'}
-              disabled={permission === 'unsupported'}
-              accessibilityLabel="Send me reminders"
-              onValueChange={async (on) => {
-                if (on && permission !== 'granted') {
-                  const result = await actions.askForNotificationPermission();
-                  if (result !== 'granted') {
-                    Alert.alert(
-                      'Notifications are off',
-                      'Turn them on for this app in your device settings, then come back.',
-                    );
-                    return;
-                  }
-                }
-                actions.updateSettings({ notificationsEnabled: on });
-              }}
-              trackColor={{ true: theme.color.accent, false: theme.color.borderStrong }}
-              thumbColor="#FFFFFF"
+      <ListSection header="Classes">
+        <ListRow label="Your classes" value={`${data.subjects.length}`} icon="school" iconColor={theme.color.success} onPress={() => setPane('classes')} />
+      </ListSection>
+
+      <ListSection header="General">
+        <ListRow label="Appearance" value={THEME_LABEL[settings.themePreference]} icon="contrast" iconColor={theme.color.textMuted} onPress={() => setPane('appearance')} />
+      </ListSection>
+
+      <ListSection footer="Everything stays on this device. No account, nothing uploaded.">
+        <ListRow label="Erase Everything" destructive accessory="none" onPress={confirmReset} />
+      </ListSection>
+
+      {/* --- Time each day -------------------------------------------------- */}
+      <SubScreen visible={pane === 'time'} title="Time Each Day" onClose={() => setPane(null)}>
+        <ListSection footer="How long you're willing to work on each day. Set a busy day to None and the plan routes around it.">
+          {DAYS.map((day, index) => (
+            <ListRow
+              key={day}
+              label={day}
+              value={settings.capacityByWeekday[index] === 0 ? 'None' : formatMinutes(settings.capacityByWeekday[index])}
+              onPress={() => setCapacity(index, nextCapacity(settings.capacityByWeekday[index]))}
+              accessory="none"
+              accessibilityHint="Double tap to change"
             />
-          </View>
+          ))}
+        </ListSection>
+      </SubScreen>
 
-          <Divider />
-
-          <StepperRow
-            label="Tonight's plan"
-            hint="When you get told what to work on"
-            value={formatTimeOfDay(settings.planReminderMinutes)}
-            onDecrease={() => shiftTime('planReminderMinutes', -15)}
-            onIncrease={() => shiftTime('planReminderMinutes', 15)}
-          />
-          <StepperRow
-            label="Check-in"
-            hint="A nudge about anything still unticked"
-            value={formatTimeOfDay(settings.checkInMinutes)}
-            onDecrease={() => shiftTime('checkInMinutes', -15)}
-            onIncrease={() => shiftTime('checkInMinutes', 15)}
-          />
-        </Card>
-      </Gutter>
-
-      <SectionTitle>How work gets split up</SectionTitle>
-      <Gutter>
-        <Card>
-          <View style={styles.switchRow}>
-            <View style={{ flex: 1 }}>
-              <Text variant="heading" color={theme.color.text}>
-                Finish a day early
-              </Text>
-              <Text variant="small" color={theme.color.textFaint} style={styles.hint}>
-                Schedules big assignments to be done the day before they're due.
-              </Text>
-            </View>
-            <Switch
-              value={settings.finishADayEarly}
-              accessibilityLabel="Finish a day early"
-              onValueChange={(on) => actions.updateSettings({ finishADayEarly: on })}
-              trackColor={{ true: theme.color.accent, false: theme.color.borderStrong }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-
-          <Divider />
-
-          <StepperRow
+      {/* --- Pacing --------------------------------------------------------- */}
+      <SubScreen visible={pane === 'pacing'} title="Pacing" onClose={() => setPane(null)}>
+        <ListSection footer="Work longer than the longest sitting gets split across days. Nothing shorter than the shortest block lands on your plan.">
+          <ListRow
             label="Longest sitting"
-            hint="Work longer than this gets split across days"
             value={formatMinutes(settings.maxChunkMinutes)}
-            onDecrease={() =>
+            accessory="none"
+            onPress={() =>
               actions.updateSettings({
-                maxChunkMinutes: Math.max(settings.minChunkMinutes, settings.maxChunkMinutes - 10),
+                maxChunkMinutes: settings.maxChunkMinutes >= 90 ? settings.minChunkMinutes : settings.maxChunkMinutes + 10,
               })
             }
-            onIncrease={() =>
-              actions.updateSettings({ maxChunkMinutes: Math.min(180, settings.maxChunkMinutes + 10) })
-            }
           />
-          <StepperRow
+          <ListRow
             label="Shortest block"
-            hint="Nothing smaller than this lands on your plan"
             value={formatMinutes(settings.minChunkMinutes)}
-            onDecrease={() =>
-              actions.updateSettings({ minChunkMinutes: Math.max(5, settings.minChunkMinutes - 5) })
-            }
-            onIncrease={() =>
+            accessory="none"
+            onPress={() =>
               actions.updateSettings({
-                minChunkMinutes: Math.min(settings.maxChunkMinutes, settings.minChunkMinutes + 5),
+                minChunkMinutes: settings.minChunkMinutes >= settings.maxChunkMinutes ? 5 : settings.minChunkMinutes + 5,
               })
             }
           />
-        </Card>
-      </Gutter>
+        </ListSection>
+        <ListSection footer="Schedules big assignments to be done the day before they're due, so a surprise on the due date isn't a disaster.">
+          <ListRow
+            label="Finish a day early"
+            switchValue={settings.finishADayEarly}
+            onSwitchChange={(on) => actions.updateSettings({ finishADayEarly: on })}
+          />
+        </ListSection>
+      </SubScreen>
 
-      <SectionTitle>Appearance</SectionTitle>
-      <Gutter>
-        <Card>
-          <Text variant="small" color={theme.color.textMuted} style={styles.explainer}>
-            Auto follows your device, switching to dark in the evening if your phone does.
-          </Text>
-          <View style={styles.segment}>
-            {THEMES.map((option) => {
-              const selected = settings.themePreference === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => actions.updateSettings({ themePreference: option.value })}
-                  style={({ pressed }) => [
-                    styles.segmentItem,
-                    selected && { backgroundColor: theme.color.accent },
-                    pressed && { opacity: 0.7 },
-                  ]}
-                >
-                  <Text variant="body" color={selected ? theme.color.onAccent : theme.color.textMuted}>
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Card>
-      </Gutter>
+      {/* --- Classes -------------------------------------------------------- */}
+      <SubScreen visible={pane === 'classes'} title="Classes" onClose={() => setPane(null)}>
+        <ListSection footer="Tap a class to rename it. Deleting one moves its assignments to your first class.">
+          {data.subjects.map((subject) => (
+            <ListRow
+              key={subject.id}
+              label={subject.name}
+              value={`${data.assignments.filter((a) => a.subjectId === subject.id).length}`}
+              icon="ellipse"
+              iconColor={theme.subject(subject.color).dot}
+              onPress={() => setRenaming({ id: subject.id, name: subject.name })}
+            />
+          ))}
+          <ListAction label="Add Class" onPress={() => setAddingSubject(true)} />
+        </ListSection>
+        <ListSection>
+          {data.subjects.map((subject) => (
+            <ListRow
+              key={subject.id}
+              label={`Delete ${subject.name}`}
+              destructive
+              accessory="none"
+              onPress={() => confirmDeleteSubject(subject.id, subject.name)}
+            />
+          ))}
+        </ListSection>
+      </SubScreen>
 
-      <SectionTitle
-        trailing={
-          <Pressable onPress={() => setAddingSubject(true)} hitSlop={10} accessibilityRole="button">
-            <Text variant="small" color={theme.color.accent}>
-              + Add
-            </Text>
-          </Pressable>
-        }
-      >
-        Your classes
-      </SectionTitle>
-      <Gutter>
-        {data.subjects.map((subject) => {
-          const colors = theme.subject(subject.color);
-          return (
-            <Card key={subject.id} style={styles.subjectRow}>
-              <View style={[styles.subjectDot, { backgroundColor: colors.dot }]} />
-              <Pressable
-                style={{ flex: 1 }}
-                accessibilityRole="button"
-                accessibilityLabel={`Rename ${subject.name}`}
-                onPress={() => setRenaming({ id: subject.id, name: subject.name })}
-              >
-                <Text variant="heading" color={theme.color.text}>
-                  {subject.name}
+      {/* --- Appearance ----------------------------------------------------- */}
+      <SubScreen visible={pane === 'appearance'} title="Appearance" onClose={() => setPane(null)}>
+        <ListSection footer="Automatic follows your device, switching to dark in the evening if your phone does.">
+          {(['system', 'light', 'dark'] as ThemePreference[]).map((option) => (
+            <Pressable
+              key={option}
+              accessibilityRole="button"
+              accessibilityState={{ selected: settings.themePreference === option }}
+              onPress={() => actions.updateSettings({ themePreference: option })}
+              style={({ pressed }) => [styles.choice, pressed && { backgroundColor: theme.color.surfaceHigh }]}
+            >
+              <Text variant="body" color={theme.color.text} style={{ flex: 1 }}>
+                {THEME_LABEL[option]}
+              </Text>
+              {settings.themePreference === option ? (
+                <Text variant="heading" color={theme.color.accent}>
+                  ✓
                 </Text>
-                <Text variant="small" color={theme.color.textFaint} style={styles.hint}>
-                  {data.assignments.filter((a) => a.subjectId === subject.id).length} assignments
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => confirmDeleteSubject(subject.id, subject.name)}
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel={`Delete ${subject.name}`}
-              >
-                <Text variant="small" color={theme.color.textFaint}>
-                  Remove
-                </Text>
-              </Pressable>
-            </Card>
+              ) : null}
+            </Pressable>
+          ))}
+        </ListSection>
+      </SubScreen>
+
+      <TimePickerSheet
+        visible={timePicker !== null}
+        title={timePicker === 'plan' ? "Tonight's Plan" : 'Check-in'}
+        minutes={timePicker === 'checkIn' ? settings.checkInMinutes : settings.planReminderMinutes}
+        onCancel={() => setTimePicker(null)}
+        onConfirm={(minutes) => {
+          actions.updateSettings(
+            timePicker === 'checkIn' ? { checkInMinutes: minutes } : { planReminderMinutes: minutes },
           );
-        })}
-      </Gutter>
-
-      <SectionTitle>Your data</SectionTitle>
-      <Gutter>
-        <Card>
-          <Text variant="small" color={theme.color.textMuted} style={styles.explainer}>
-            Everything lives on this device. There is no account, nothing is uploaded, and nobody else
-            can see it.
-          </Text>
-          <View style={{ marginTop: space(4) }}>
-            <Button label="Erase everything" kind="danger" onPress={confirmReset} />
-          </View>
-        </Card>
-      </Gutter>
+          setTimePicker(null);
+        }}
+      />
 
       <PromptModal
         visible={addingSubject}
-        title="New class"
+        title="New Class"
         placeholder="e.g. Chemistry"
         onCancel={() => setAddingSubject(false)}
         onConfirm={(name) => {
@@ -338,7 +245,7 @@ export function SettingsScreen() {
       />
       <PromptModal
         visible={renaming !== null}
-        title="Rename class"
+        title="Rename Class"
         initialValue={renaming?.name ?? ''}
         confirmLabel="Save"
         onCancel={() => setRenaming(null)}
@@ -351,110 +258,14 @@ export function SettingsScreen() {
   );
 }
 
-function StepperRow({
-  label,
-  hint,
-  value,
-  onDecrease,
-  onIncrease,
-}: {
-  label: string;
-  hint: string;
-  value: string;
-  onDecrease: () => void;
-  onIncrease: () => void;
-}) {
-  const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
-  return (
-    <View style={styles.stepperRow}>
-      <View style={{ flex: 1 }}>
-        <Text variant="heading" color={theme.color.text}>
-          {label}
-        </Text>
-        <Text variant="small" color={theme.color.textFaint} style={styles.hint}>
-          {hint}
-        </Text>
-      </View>
-      <View style={styles.stepper}>
-        <Pressable
-          onPress={onDecrease}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={`Decrease ${label}`}
-          style={({ pressed }) => [styles.stepperButton, pressed && { opacity: 0.6 }]}
-        >
-          <Text variant="heading" color={theme.color.text} style={{ lineHeight: 20 }}>
-            −
-          </Text>
-        </Pressable>
-        <Text variant="body" color={theme.color.text} style={styles.stepperValue}>
-          {value}
-        </Text>
-        <Pressable
-          onPress={onIncrease}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={`Increase ${label}`}
-          style={({ pressed }) => [styles.stepperButton, pressed && { opacity: 0.6 }]}
-        >
-          <Text variant="heading" color={theme.color.text} style={{ lineHeight: 20 }}>
-            +
-          </Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-    explainer: { lineHeight: 19 },
-    hint: { marginTop: 2, lineHeight: 18 },
-
-    capacityRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: space(4), gap: space(1) },
-    capacityDay: {
-      flex: 1,
+    choice: {
+      flexDirection: 'row',
       alignItems: 'center',
+      minHeight: TAP_TARGET,
+      paddingHorizontal: space(4),
       paddingVertical: space(2),
       borderRadius: radius.sm,
-      backgroundColor: theme.color.surfaceHigh,
-      minHeight: TAP_TARGET,
-      justifyContent: 'center',
     },
-    capacityDayOff: { backgroundColor: theme.color.surfaceSunken },
-    capacityValue: { marginTop: 2, fontVariant: ['tabular-nums'] },
-
-    switchRow: { flexDirection: 'row', alignItems: 'center', gap: space(3) },
-
-    stepperRow: { flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(2) },
-    stepper: { flexDirection: 'row', alignItems: 'center', gap: space(2) },
-    stepperButton: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: theme.color.surfaceHigh,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    stepperValue: { minWidth: 78, textAlign: 'center', fontVariant: ['tabular-nums'] },
-
-    segment: {
-      flexDirection: 'row',
-      gap: space(1),
-      marginTop: space(4),
-      padding: space(1),
-      borderRadius: radius.md,
-      backgroundColor: theme.color.surfaceSunken,
-    },
-    segmentItem: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: TAP_TARGET - 6,
-      borderRadius: radius.sm,
-    },
-
-    subjectRow: { flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(3) },
-    subjectDot: { width: 12, height: 12, borderRadius: 6 },
   });

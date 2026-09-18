@@ -1,10 +1,13 @@
 import {
   addDays,
+  dateRangeLabel,
   dayRange,
   diffDays,
   formatMinutes,
   formatTimeOfDay,
   fromDayKey,
+  fullDayLabel,
+  monthYearLabel,
   relativeDayLabel,
   shortDayLabel,
   startOfWeek,
@@ -97,5 +100,28 @@ describe('labels', () => {
     expect(formatTimeOfDay(12 * 60)).toBe('12:00 PM');
     expect(formatTimeOfDay(16 * 60 + 30)).toBe('4:30 PM');
     expect(formatTimeOfDay(23 * 60 + 59)).toBe('11:59 PM');
+  });
+});
+
+describe('date range labels', () => {
+  it('names the month and year a week sits in', () => {
+    expect(monthYearLabel('2026-09-18')).toBe('September 2026');
+    expect(monthYearLabel('2027-01-01')).toBe('January 2027');
+  });
+
+  it('collapses a month and year both ends share', () => {
+    expect(dateRangeLabel('2026-09-14', '2026-09-20')).toBe('14 – 20 September 2026');
+  });
+
+  it('keeps both months when a week straddles two', () => {
+    expect(dateRangeLabel('2026-06-29', '2026-07-05')).toBe('29 Jun – 5 Jul 2026');
+  });
+
+  it('keeps both years when a week straddles new year', () => {
+    expect(dateRangeLabel('2026-12-28', '2027-01-03')).toBe('28 Dec 2026 – 3 Jan 2027');
+  });
+
+  it('spells out a selected day in full', () => {
+    expect(fullDayLabel('2026-09-18')).toBe('Friday, 18 September');
   });
 });

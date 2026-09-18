@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 import { addDays, formatMinutes, relativeDayLabel } from '../../domain/dates';
@@ -7,9 +7,9 @@ import { buildPlan } from '../../domain/planner';
 import { SIZE_MINUTES, type Size } from '../../domain/types';
 import { useApp } from '../../state/store';
 import { Button, Card, Screen, Text, TextField } from '../components/primitives';
-import { DuePicker, SizePicker, SubjectPicker } from '../components/pickers';
+import { DuePicker, Prompt, SizePicker, SubjectPicker } from '../components/pickers';
 import { PromptModal } from '../components/PromptModal';
-import { space, useTheme, type Theme } from '../theme';
+import { fontStyle, radius, space, useTheme, type Theme } from '../theme';
 
 /**
  * Capture has to survive a noisy hallway and thirty seconds between classes, so
@@ -98,7 +98,7 @@ export function AddScreen({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <Screen title="Add homework" subtitle="Write it down now, plan it later" scroll={false}>
+    <Screen title="Add homework" subtitle="Write it down now — the plan sorts itself out" scroll={false}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -124,14 +124,22 @@ export function AddScreen({ onSaved }: { onSaved: () => void }) {
             </Card>
           ) : null}
 
-          <TextField
-            label="What do you have to do?"
-            value={title}
-            onChangeText={setTitle}
-            placeholder="e.g. Ch 4 problems 1–20"
-            maxLength={120}
-            returnKeyType="done"
-          />
+          <View>
+            <Prompt>What do you have to do?</Prompt>
+            <TextInput
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Ch 4 problems 1–20"
+              placeholderTextColor={theme.color.textFaint}
+              accessibilityLabel="What do you have to do?"
+              maxLength={120}
+              returnKeyType="done"
+              multiline
+              maxFontSizeMultiplier={1.6}
+              keyboardAppearance={theme.scheme === 'dark' ? 'dark' : 'light'}
+              style={styles.titleInput}
+            />
+          </View>
 
           <SubjectPicker
             subjects={data.subjects}
@@ -146,8 +154,8 @@ export function AddScreen({ onSaved }: { onSaved: () => void }) {
 
           {preview ? (
             <Card style={styles.preview}>
-              <Text variant="tiny" color={theme.color.textFaint} style={{ marginBottom: space(1) }}>
-                HERE IS THE PLAN
+              <Text variant="heading" color={theme.color.text} style={{ marginBottom: space(2) }}>
+                Here's the plan
               </Text>
               {preview.problem ? (
                 <Text variant="small" color={theme.color.warning} style={styles.previewProblem}>
@@ -174,16 +182,18 @@ export function AddScreen({ onSaved }: { onSaved: () => void }) {
             </Card>
           ) : null}
 
-          <TextField
-            label="Notes (optional)"
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Anything the teacher said that you'll forget by tonight"
-            multiline
-            maxLength={500}
-          />
+          <View>
+            <Prompt>Anything else?</Prompt>
+            <TextField
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Page numbers, what the teacher said…"
+              multiline
+              maxLength={500}
+            />
+          </View>
 
-          <Button label="Add it" onPress={save} disabled={!title.trim()} />
+          <Button label="Add to my week" onPress={save} disabled={!title.trim()} />
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -210,6 +220,18 @@ const makeStyles = (theme: Theme) =>
       width: '100%',
       maxWidth: theme.contentMaxWidth === Infinity ? undefined : theme.contentMaxWidth,
       alignSelf: 'center',
+    },
+    titleInput: {
+      minHeight: 76,
+      backgroundColor: theme.color.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1.5,
+      borderColor: theme.color.border,
+      paddingHorizontal: space(4),
+      paddingVertical: space(3),
+      color: theme.color.text,
+      textAlignVertical: 'top',
+      ...fontStyle('title'),
     },
     preview: { backgroundColor: theme.color.surfaceSunken, gap: space(1) },
     previewProblem: { marginBottom: space(2), lineHeight: 19 },

@@ -3,10 +3,12 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
   addDays,
+  dateRangeLabel,
   dayRange,
   diffDays,
   formatMinutes,
   fromDayKey,
+  fullDayLabel,
   relativeDayLabel,
   startOfWeek,
   weekdayShort,
@@ -51,20 +53,26 @@ export function WeekScreen() {
 
   return (
     <Screen
-      title="Your week"
+      title={weekOffset === 0 ? 'This week' : dateRangeLabel(week[0], week[6])}
       subtitle={
-        weekMinutes === 0
-          ? 'Nothing scheduled this week'
-          : `${formatMinutes(weekMinutes)} of homework across 7 days`
+        weekOffset === 0
+          ? dateRangeLabel(week[0], week[6])
+          : weekMinutes === 0
+            ? 'Nothing scheduled'
+            : `${formatMinutes(weekMinutes)} of homework`
       }
       action={
         <View style={styles.weekNav}>
           <NavButton label="‹" hint="Previous week" onPress={() => setWeekOffset((w) => w - 1)} />
-          <Pressable onPress={() => setWeekOffset(0)} hitSlop={8} accessibilityRole="button">
-            <Text variant="small" color={theme.color.textMuted}>
-              {weekOffset === 0 ? 'This week' : 'Today'}
-            </Text>
-          </Pressable>
+          {/* Only offer the jump back when you are not already on this week;
+              otherwise it repeats the title for no reason. */}
+          {weekOffset !== 0 ? (
+            <Pressable onPress={() => setWeekOffset(0)} hitSlop={8} accessibilityRole="button">
+              <Text variant="small" color={theme.color.accent}>
+                Today
+              </Text>
+            </Pressable>
+          ) : null}
           <NavButton label="›" hint="Next week" onPress={() => setWeekOffset((w) => w + 1)} />
         </View>
       }
@@ -140,6 +148,12 @@ export function WeekScreen() {
             })}
           </View>
 
+          <View style={styles.totalRow}>
+            <Text variant="small" color={theme.color.textMuted}>
+              {weekMinutes === 0 ? 'Nothing scheduled' : `${formatMinutes(weekMinutes)} planned this week`}
+            </Text>
+          </View>
+
           <View style={styles.legend}>
             <LegendDot color={theme.color.accent} label="planned" />
             <LegendDot color={theme.color.success} label="done" />
@@ -155,7 +169,7 @@ export function WeekScreen() {
           </Text>
         }
       >
-        {relativeDayLabel(showSelected, today)}
+        {showSelected === today ? `Today · ${fullDayLabel(showSelected)}` : fullDayLabel(showSelected)}
       </SectionTitle>
 
       {dueOnSelected.length > 0 ? (
@@ -294,11 +308,13 @@ const makeStyles = (theme: Theme) =>
     },
     tabular: { fontVariant: ['tabular-nums'] },
 
+    totalRow: { marginTop: space(4), alignItems: 'center' },
     legend: {
       flexDirection: 'row',
       gap: space(4),
       flexWrap: 'wrap',
-      marginTop: space(4),
+      justifyContent: 'center',
+      marginTop: space(3),
       paddingTop: space(3),
       borderTopWidth: 1,
       borderTopColor: theme.color.border,
