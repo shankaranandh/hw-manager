@@ -6,11 +6,12 @@
  *   node scripts/store-screenshots.mjs
  *
  * Output lands in store-screenshots/. Apple revises the required sizes from time
- * to time; check the current ones in App Store Connect and update DEVICES.
+ * to time, and App Store Connect shows different iPhone slots depending on the
+ * account, so check what the upload box actually asks for and update DEVICES.
  */
-import { chromium } from 'playwright';
-
 import { mkdirSync } from 'node:fs';
+
+import { chromium } from 'playwright';
 
 mkdirSync('store-screenshots', { recursive: true });
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
@@ -23,7 +24,10 @@ const errors = [];
  *   iPad 13"    1024 x 1366 @2 = 2048 x 2732
  */
 const DEVICES = [
+  // 6.9" slot (iPhone 16/15 Pro Max). App Store Connect shows this on newer accounts.
   { key: 'iphone-6.9', viewport: { width: 430, height: 932 }, dsf: 3, expect: '1290x2796' },
+  // 6.5" slot, which also accepts 1284x2778. Some accounts still show only this one.
+  { key: 'iphone-6.5', viewport: { width: 428, height: 926 }, dsf: 3, expect: '1284x2778' },
   { key: 'ipad-13', viewport: { width: 1024, height: 1366 }, dsf: 2, expect: '2048x2732' },
 ];
 

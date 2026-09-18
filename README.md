@@ -150,14 +150,27 @@ the same commit.
 `scripts/store-screenshots.mjs` renders the required sets from the real app:
 
 ```bash
-npm run web                             # one terminal
-npx playwright install chromium         # first run only
+npx playwright install chromium         # first run only, downloads the browser
+npm run web                             # one terminal, wait for it to be ready
 node scripts/store-screenshots.mjs      # another terminal
 ```
 
-It produces the 6.9-inch iPhone set at 1290×2796 and the 13-inch iPad set at
-2048×2732, in both light and dark, and asserts the sizes. iPad shots are not
-optional once `supportsTablet` is on.
+It produces three sets in both light and dark, asserting every size:
+
+| Slot | Pixels |
+| --- | --- |
+| iPhone 6.9" | 1290 × 2796 |
+| iPhone 6.5" | 1284 × 2778 |
+| iPad 13" | 2048 × 2732 |
+
+Both iPhone sets exist because App Store Connect shows different slots depending
+on the account: some offer the 6.9-inch slot, others still only 6.5-inch, and a
+file sized for one is rejected by the other. Upload whichever matches the slot on
+screen. iPad shots are not optional once `supportsTablet` is on.
+
+Listing copy — name, subtitle, description, keywords, review notes — lives in
+[`docs/app-store-listing.md`](docs/app-store-listing.md), with the character
+counts checked against Apple's limits.
 
 ### What still needs a human
 
