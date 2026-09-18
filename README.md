@@ -171,9 +171,15 @@ These need your Apple account and cannot be done from a repository:
 
    | Field | Value |
    | --- | --- |
-   | Name (30 chars) | `Chunks` |
+   | Name (30 chars) | `Chunks: Homework Planner` |
    | Subtitle (30 chars) | `Homework, paced not crammed` |
    | Keywords (100 chars) | `planner,study,school,assignment,due,reminder,student,agenda,organizer,teen` |
+
+   The App Store name and the name under the icon are different fields. Store
+   names are unique across the whole App Store, and plain "Chunks" is taken, so
+   the listing carries a descriptor. The home screen still reads **Chunks**: that
+   comes from `expo.name` in `app.json`, which lands as `CFBundleDisplayName`.
+   Changing one does not change the other.
 
    Leave "homework" out of the keywords: it is already in the subtitle, and
    Apple ignores repeats. You also need screenshots for both iPhone and iPad,
