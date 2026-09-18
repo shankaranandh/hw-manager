@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { computeAchievements } from '../../domain/achievements';
 import { addDays, formatMinutes, relativeDayLabel, weekdayLong } from '../../domain/dates';
 import { findPlanDay } from '../../domain/planner';
 import type { PlanWarning } from '../../domain/types';
 import { useApp } from '../../state/store';
 import { AssignmentSheet } from '../components/AssignmentSheet';
 import { BlockRow } from '../components/BlockRow';
+import { ClearedBanner, StreakStrip } from '../components/StreakStrip';
 import {
   Button,
   Card,
@@ -43,6 +45,18 @@ export function TodayScreen({ onAdd }: { onAdd: () => void }) {
   const todaysWarnings = plan.warnings
     .filter((w) => (w.kind === 'overloaded' ? w.date === today : true))
     .slice(0, 3);
+
+  const achievements = useMemo(
+    () =>
+      computeAchievements({
+        assignments: data.assignments,
+        logs: data.logs,
+        today,
+        todayPlannedMinutes: totalMinutes,
+        todayDoneMinutes: doneMinutes,
+      }),
+    [data.assignments, data.logs, today, totalMinutes, doneMinutes],
+  );
 
   const upcoming = useMemo(
     () =>
@@ -130,16 +144,22 @@ export function TodayScreen({ onAdd }: { onAdd: () => void }) {
             : `${weekdayLong(today)} — ${formatMinutes(leftMinutes)} to go`
       }
     >
-      {totalMinutes > 0 ? (
+      {allDone ? (
         <Gutter>
-          <Card style={allDone ? { borderColor: theme.color.success } : undefined}>
+          <ClearedBanner streak={achievements.currentStreak} />
+        </Gutter>
+      ) : null}
+
+      {totalMinutes > 0 && !allDone ? (
+        <Gutter>
+          <Card>
             <View style={styles.heroTop}>
               <Text variant="display" color={theme.color.accent} style={styles.heroBig}>
-                {allDone ? '🎉' : `${Math.round((doneMinutes / totalMinutes) * 100)}%`}
+                {`${Math.round((doneMinutes / totalMinutes) * 100)}%`}
               </Text>
               <View style={{ flex: 1 }}>
                 <Text variant="heading" color={theme.color.text}>
-                  {allDone ? 'Everything on tonight’s list is done' : encouragement(blocks.length, leftMinutes)}
+                  {encouragement(blocks.length, leftMinutes)}
                 </Text>
                 <Text variant="small" color={theme.color.textMuted} style={{ marginTop: space(1) }}>
                   {formatMinutes(doneMinutes)} of {formatMinutes(totalMinutes)} ·{' '}
@@ -150,7 +170,7 @@ export function TodayScreen({ onAdd }: { onAdd: () => void }) {
             <View style={{ marginTop: space(4) }}>
               <ProgressBar
                 value={doneMinutes / totalMinutes}
-                tint={allDone ? theme.color.success : day?.overloaded ? theme.color.warning : theme.color.accent}
+                tint={day?.overloaded ? theme.color.warning : theme.color.accent}
                 height={8}
                 label={`${formatMinutes(doneMinutes)} of ${formatMinutes(totalMinutes)} done`}
               />
@@ -180,6 +200,10 @@ export function TodayScreen({ onAdd }: { onAdd: () => void }) {
           {comingUp}
         </>
       )}
+
+      <Gutter style={{ marginTop: space(6) }}>
+        <StreakStrip achievements={achievements} />
+      </Gutter>
 
       <AssignmentSheet assignmentId={openId} onClose={() => setOpenId(null)} />
     </Screen>

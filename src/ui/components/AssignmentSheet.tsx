@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { daysEarlyFor } from '../../domain/achievements';
 import { formatMinutes, relativeDayLabel } from '../../domain/dates';
 import { SIZE_MINUTES, type Size } from '../../domain/types';
 import { useApp } from '../../state/store';
@@ -53,6 +54,8 @@ export function AssignmentSheet({
   const remaining = plan.remainingByAssignment[assignment.id] ?? 0;
   const done = assignment.estimateMinutes - remaining;
   const isComplete = assignment.completedAt !== null;
+  // Finishing ahead of the due date is the behaviour worth naming out loud.
+  const earlyBy = daysEarlyFor(assignment);
   const dirty =
     title.trim() !== assignment.title ||
     notes.trim() !== assignment.notes ||
@@ -114,10 +117,14 @@ export function AssignmentSheet({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.statusCard}>
-            <Text variant="title" color={theme.color.text}>
+          <View
+            style={[styles.statusCard, earlyBy > 0 && { borderColor: theme.color.success }]}
+          >
+            <Text variant="title" color={earlyBy > 0 ? theme.color.success : theme.color.text}>
               {isComplete
-                ? 'Finished'
+                ? earlyBy > 0
+                  ? `Finished ${earlyBy} ${earlyBy === 1 ? 'day' : 'days'} early`
+                  : 'Finished'
                 : remaining === 0
                   ? 'Nothing left to do'
                   : `${formatMinutes(remaining)} left`}
